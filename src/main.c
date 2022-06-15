@@ -5,6 +5,29 @@
 #include <stdio.h>
 #include <malloc.h>
 
+#define ASSERT(x) if(!(x)) __builtin_trap();
+#define GLCall(x) GLClearErrors();\
+    x;\
+    ASSERT(GLLogCall(#x, __FILE__, __LINE__))
+
+static void GLClearErrors()
+{
+    while(glGetError() != GL_NO_ERROR);
+}
+
+static int GLLogCall(const char* function, const char* file, int line)
+{
+    GLenum error = glGetError();
+    while (error != GL_NO_ERROR)
+    {
+        printf("OpenGL error (0x%x): %s in %s:%d\n", error, function, file, line);
+        error = glGetError();
+        return 0;
+    }
+
+    return 1;
+}
+
 // Loads the file at filePath and returns a pointer to the string contents
 static char* LoadShader(const char* filePath)
 {
@@ -21,8 +44,9 @@ static char* LoadShader(const char* filePath)
     char* buffer = malloc(length + 1);
 
     fseek(file, 0, SEEK_SET);
-    fread(buffer, 1, length, file);
-    buffer[length] = '\0';
+    long actualLength = fread(buffer, 1, length, file);
+    buffer[actualLength] = '\0';
+
     fclose(file);
     return buffer;
 }
@@ -75,6 +99,10 @@ int main(void)
     if (!glfwInit())
         return -1;
 
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
     /* Create a windowed mode window and its OpenGL context */
     window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
     if (!window)
@@ -85,6 +113,8 @@ int main(void)
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
+
+    glfwSwapInterval(1);
 
     if (glewInit() != GLEW_OK)
         printf("Error initializing glew!\n");
@@ -103,32 +133,65 @@ int main(void)
         2, 3, 0
     };
 
-    unsigned int buffer;
-    glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, 2 * 4 * sizeof(float), positions, GL_STATIC_DRAW);
+    unsigned int vao;
+    GLCall(glGenVertexArrays(1, &vao));
+    GLCall(glBindVertexArray(vao));
 
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+    unsigned int buffer;
+    GLCall(glGenBuffers(1, &buffer));
+    GLCall(glBindBuffer(GL_ARRAY_BUFFER, buffer));
+    GLCall(glBufferData(GL_ARRAY_BUFFER, 2 * 4 * sizeof(float), positions, GL_STATIC_DRAW));
+
+    GLCall(glEnableVertexAttribArray(0));
+    GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0));
 
     unsigned int ibo;
-    glGenBuffers(1, &ibo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
+    GLCall(glGenBuffers(1, &ibo));
+    GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo));
+    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW));
 
     char* vertexShader = LoadShader("shaders/BasicVert.glsl");
     char* fragmentShader = LoadShader("shaders/BasicFrag.glsl");
 
     unsigned int shader = CreateShader(vertexShader, fragmentShader);
-    glUseProgram(shader);
+    GLCall(glUseProgram(shader));
 
+    GLCall(int location = glGetUniformLocation(shader, "Color"));
+    ASSERT(location != -1);
+    GLCall(glUniform4f(location, 0.2f, 0.3f, 0.8f, 1.0f));
+
+
+    GLCall(glBindVertexArray(0));
+    GLCall(glUseProgram(0));
+    GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
+    GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+
+    float r = 0.0f;
+    float increment = 0.05f;
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         /* Render here */
-        glClear(GL_COLOR_BUFFER_BIT);
+        GLCall(glClear(GL_COLOR_BUFFER_BIT));
 
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+        GLCall(glUseProgram(shader));
+        GLCall(glUniform4f(location, r, 0.3f, 0.8f, 1.0f));
+
+        GLCall(glBindVertexArray(vao));
+        GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo));
+
+        GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL));
+
+        if (r > 1.0f)
+        {
+            increment *= -1;
+        }
+        else if (r < 0.0f)
+        {
+            increment *= -1;
+        }
+
+        r += increment;
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);

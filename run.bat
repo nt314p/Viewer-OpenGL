@@ -1,0 +1,1 @@
+gdb main -q
