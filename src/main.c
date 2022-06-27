@@ -1,32 +1,8 @@
-#define GLEW_STATIC
-
+#include "renderer.h"
 #include <GL\glew.h>
 #include <GLFW\glfw3.h>
 #include <stdio.h>
 #include <malloc.h>
-
-#define ASSERT(x) if(!(x)) __builtin_trap();
-#define GLCall(x) GLClearErrors();\
-    x;\
-    ASSERT(GLLogCall(#x, __FILE__, __LINE__))
-
-static void GLClearErrors()
-{
-    while(glGetError() != GL_NO_ERROR);
-}
-
-static int GLLogCall(const char* function, const char* file, int line)
-{
-    GLenum error = glGetError();
-    while (error != GL_NO_ERROR)
-    {
-        printf("OpenGL error (0x%x): %s in %s:%d\n", error, function, file, line);
-        error = glGetError();
-        return 0;
-    }
-
-    return 1;
-}
 
 // Loads the file at filePath and returns a pointer to the string contents
 static char* LoadShader(const char* filePath)
@@ -137,18 +113,14 @@ int main(void)
     GLCall(glGenVertexArrays(1, &vao));
     GLCall(glBindVertexArray(vao));
 
-    unsigned int buffer;
-    GLCall(glGenBuffers(1, &buffer));
-    GLCall(glBindBuffer(GL_ARRAY_BUFFER, buffer));
-    GLCall(glBufferData(GL_ARRAY_BUFFER, 2 * 4 * sizeof(float), positions, GL_STATIC_DRAW));
+    VertexBuffer vb;
+    VertexBufferInitialize(&vb, positions, 2 * 4 * sizeof(float));
 
     GLCall(glEnableVertexAttribArray(0));
     GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0));
 
-    unsigned int ibo;
-    GLCall(glGenBuffers(1, &ibo));
-    GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo));
-    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW));
+    IndexBuffer ib;
+    IndexBufferInitialize(&ib, indices, 6);
 
     char* vertexShader = LoadShader("shaders/BasicVert.glsl");
     char* fragmentShader = LoadShader("shaders/BasicFrag.glsl");
@@ -178,7 +150,7 @@ int main(void)
         GLCall(glUniform4f(location, r, 0.3f, 0.8f, 1.0f));
 
         GLCall(glBindVertexArray(vao));
-        GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo));
+        IndexBufferBind(&ib);
 
         GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL));
 
