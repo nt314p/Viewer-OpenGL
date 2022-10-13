@@ -1,8 +1,15 @@
 #include "renderer.h"
 #include <GL\glew.h>
 #include <GLFW\glfw3.h>
+#include <cglm\cglm.h>
 #include <stdio.h>
 #include <malloc.h>
+
+#define WIDTH 640
+#define HEIGHT 480
+
+float x = 0;
+float z = -3.0f;
 
 // Loads the file at filePath and returns a pointer to the string contents
 static char* LoadShader(const char* filePath)
@@ -67,6 +74,19 @@ static unsigned int CreateShader(const char* vertexShader, const char* fragmentS
     return program;
 }
 
+void processInput(GLFWwindow* window)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+    {
+        glfwSetWindowShouldClose(window, 1);
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) x += 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) x -= 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) z += 0.1f;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) z -= 0.1f;
+}
+
 int main(void)
 {
     GLFWwindow* window;
@@ -80,7 +100,7 @@ int main(void)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
+    window = glfwCreateWindow(WIDTH, HEIGHT, "Hello World", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -98,10 +118,10 @@ int main(void)
     printf("%s\n", glGetString(GL_VERSION));
 
     float positions[] = {
-        -0.5f, -0.5f,
-        0.5f, -0.5f,
-        0.5f, 0.5f,
-        -0.5f, 0.5f,
+        -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        -0.5f, 0.5f, 1.0f, 0.0f, 1.0f
     };
 
     unsigned int indices[] = {
@@ -114,10 +134,16 @@ int main(void)
     GLCall(glBindVertexArray(vao));
 
     VertexBuffer vb;
-    VertexBufferInitialize(&vb, positions, 2 * 4 * sizeof(float));
+    VertexBufferInitialize(&vb, positions, sizeof(positions));
 
+    // position attribute (stride is 5 * sizeof(float))
+    GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0));
     GLCall(glEnableVertexAttribArray(0));
-    GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0));
+
+    // color attribute (offset is 2 * sizeof(float))
+    GLCall(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,
+        5 * sizeof(float), (void*)(2 * sizeof(float))));
+    GLCall(glEnableVertexAttribArray(1));
 
     IndexBuffer ib;
     IndexBufferInitialize(&ib, indices, 6);
@@ -126,49 +152,50 @@ int main(void)
     char* fragmentShader = LoadShader("shaders/BasicFrag.glsl");
 
     unsigned int shader = CreateShader(vertexShader, fragmentShader);
-    GLCall(glUseProgram(shader));
 
-    GLCall(int location = glGetUniformLocation(shader, "Color"));
-    ASSERT(location != -1);
-    GLCall(glUniform4f(location, 0.2f, 0.3f, 0.8f, 1.0f));
-
+    GLCall(int location = glGetUniformLocation(shader, "angle"));
+    GLCall(int mvpLocation = glGetUniformLocation(shader, "mvpMatrix"));
+    // GLCall(int colorLocation = glGetUniformLocation(shader, "Color"));
+    // ASSERT(colorLocation != -1);
+    // GLCall(glUniform4f(colorLocation, 0.2f, 0.3f, 0.8f, 1.0f));
 
     GLCall(glBindVertexArray(0));
     GLCall(glUseProgram(0));
     GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
     GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
 
-    float r = 0.0f;
-    float increment = 0.05f;
-    /* Loop until the user closes the window */
+    GLCall(glUseProgram(shader));
+
+    float angle = 0;
+
     while (!glfwWindowShouldClose(window))
     {
-        /* Render here */
-        GLCall(glClear(GL_COLOR_BUFFER_BIT));
+        processInput(window);
 
-        GLCall(glUseProgram(shader));
-        GLCall(glUniform4f(location, r, 0.3f, 0.8f, 1.0f));
+        mat4 model, view, projection, mvpMatrix;
+        glm_mat4_identity(model);
+        glm_rotate(model, angle, (vec3) { 1.0f, 1.0f, 0.0f });
+        glm_mat4_identity(view);
+        glm_translate(view, (vec3) { -x, 0.0f, z });
+        glm_perspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f, projection);
+        glm_mat4_mul(view, model, mvpMatrix);
+        glm_mat4_mul(projection, mvpMatrix, mvpMatrix);
+
+        angle += 0.01;
+        GLCall(glUniform1f(location, angle));
+
+        GLCall(glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, mvpMatrix[0]));
+
+        /* Render here */
+        GLCall(glClearColor(0.1f, 0.15f, 0.2f, 1.0f));
+        GLCall(glClear(GL_COLOR_BUFFER_BIT));
 
         GLCall(glBindVertexArray(vao));
         IndexBufferBind(&ib);
 
         GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL));
 
-        if (r > 1.0f)
-        {
-            increment *= -1;
-        }
-        else if (r < 0.0f)
-        {
-            increment *= -1;
-        }
-
-        r += increment;
-
-        /* Swap front and back buffers */
         glfwSwapBuffers(window);
-
-        /* Poll for and process events */
         glfwPollEvents();
     }
 
