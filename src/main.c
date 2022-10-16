@@ -1,15 +1,14 @@
 #include "renderer.h"
+#include <cglm\cglm.h>
 #include <GL\glew.h>
 #include <GLFW\glfw3.h>
-#include <cglm\cglm.h>
 #include <stdio.h>
 #include <malloc.h>
 
 #define WIDTH 640
 #define HEIGHT 480
 
-float x = 0;
-float z = -3.0f;
+void processInput(GLFWwindow* window);
 
 // Loads the file at filePath and returns a pointer to the string contents
 static char* LoadShader(const char* filePath)
@@ -74,21 +73,24 @@ static unsigned int CreateShader(const char* vertexShader, const char* fragmentS
     return program;
 }
 
-void processInput(GLFWwindow* window)
-{
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-    {
-        glfwSetWindowShouldClose(window, 1);
-    }
+float deltaTime;
+float lastFrame;
 
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) x += 0.1f;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) x -= 0.1f;
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) z += 0.1f;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) z -= 0.1f;
-}
+vec3 cameraTarget = { 0.0f };
+vec3 cameraDirection, cameraRight, cameraUp;
+vec3 up = { 0.0f, 1.0f, 0.0f };
+
+vec3 cameraPos = { 0.0f, 0.0f,  3.0f };
+vec3 cameraFront = { 0.0f, 0.0f, -1.0f };
+vec3 cameraUp = { 0.0f, 1.0f,  0.0f };
 
 int main(void)
 {
+    glm_vec3_sub(cameraPos, cameraTarget, cameraDirection);
+    glm_cross(up, cameraDirection, cameraRight);
+    glm_normalize(cameraRight);
+    glm_cross(cameraDirection, cameraRight, cameraUp);
+
     GLFWwindow* window;
 
     /* Initialize the library */
@@ -166,17 +168,27 @@ int main(void)
 
     GLCall(glUseProgram(shader));
 
+    GLCall(glClearColor(0.1f, 0.15f, 0.2f, 1.0f));
+
     float angle = 0;
 
     while (!glfwWindowShouldClose(window))
     {
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
         processInput(window);
 
         mat4 model, view, projection, mvpMatrix;
+
+        vec3 center;
+
+        glm_vec3_add(cameraPos, cameraFront, center);
+        glm_lookat(cameraPos, center, cameraUp, view);
+
         glm_mat4_identity(model);
         glm_rotate(model, angle, (vec3) { 1.0f, 1.0f, 0.0f });
-        glm_mat4_identity(view);
-        glm_translate(view, (vec3) { -x, 0.0f, z });
         glm_perspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f, projection);
         glm_mat4_mul(view, model, mvpMatrix);
         glm_mat4_mul(projection, mvpMatrix, mvpMatrix);
@@ -186,8 +198,6 @@ int main(void)
 
         GLCall(glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, mvpMatrix[0]));
 
-        /* Render here */
-        GLCall(glClearColor(0.1f, 0.15f, 0.2f, 1.0f));
         GLCall(glClear(GL_COLOR_BUFFER_BIT));
 
         GLCall(glBindVertexArray(vao));
@@ -205,4 +215,41 @@ int main(void)
 
     glfwTerminate();
     return 0;
+}
+
+void processInput(GLFWwindow* window)
+{
+    float speed = 2.0f;
+    vec3 movement = { 0.0f };
+    vec3 cross;
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+    {
+        glfwSetWindowShouldClose(window, 1);
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    {
+        glm_vec3_cross(cameraFront, cameraUp, cross);
+        glm_normalize(cross);
+        glm_vec3_add(movement, cross, movement);
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    {
+        glm_vec3_cross(cameraFront, cameraUp, cross);
+        glm_normalize(cross);
+        glm_vec3_sub(movement, cross, movement);
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    {
+        glm_vec3_add(movement, cameraFront, movement);
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    {
+        glm_vec3_sub(movement, cameraFront, movement);
+    }
+
+    glm_vec3_muladds(movement, speed * deltaTime, cameraPos);
 }
