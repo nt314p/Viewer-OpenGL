@@ -1,77 +1,16 @@
 #include "renderer.h"
+#include "shader.h"
 #include <cglm\cglm.h>
 #include <GL\glew.h>
 #include <GLFW\glfw3.h>
 #include <stdio.h>
 #include <malloc.h>
 
-#define WIDTH 640
-#define HEIGHT 480
+const int WIDTH = 640;
+const int HEIGHT = 480;
 
-void processInput(GLFWwindow* window);
-
-// Loads the file at filePath and returns a pointer to the string contents
-static char* LoadShader(const char* filePath)
-{
-    FILE* file = fopen(filePath, "r");
-
-    if (file == NULL)
-    {
-        printf("Error opening file at path: %s", filePath);
-        return NULL;
-    }
-
-    fseek(file, 0, SEEK_END);
-    long length = ftell(file);
-    char* buffer = malloc(length + 1);
-
-    fseek(file, 0, SEEK_SET);
-    long actualLength = fread(buffer, 1, length, file);
-    buffer[actualLength] = '\0';
-
-    fclose(file);
-    return buffer;
-}
-
-static unsigned int CompileShader(unsigned int type, const char* source)
-{
-    unsigned int id = glCreateShader(type);
-    glShaderSource(id, 1, &source, NULL);
-    glCompileShader(id);
-
-    int result;
-    glGetShaderiv(id, GL_COMPILE_STATUS, &result);
-    if (result == GL_FALSE)
-    {
-        int length;
-        glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-        char* message = (char*)alloca(length * sizeof(char));
-        glGetShaderInfoLog(id, length, NULL, message);
-        printf("Failed to compile %s shader!\n", (type == GL_VERTEX_SHADER) ? "vertex" : "fragment");
-        printf(message);
-        glDeleteShader(id);
-        return 0;
-    }
-
-    return id;
-}
-
-static unsigned int CreateShader(const char* vertexShader, const char* fragmentShader)
-{
-    unsigned int program = glCreateProgram();
-    unsigned int vs = CompileShader(GL_VERTEX_SHADER, vertexShader);
-    unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShader);
-
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
-    glLinkProgram(program);
-    glValidateProgram(program);
-
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-
-    return program;
-}
+void ProcessInput(GLFWwindow* window);
+void MouseCallback(GLFWwindow* window, double x, double y);
 
 float deltaTime;
 float lastFrame;
@@ -83,6 +22,7 @@ vec3 up = { 0.0f, 1.0f, 0.0f };
 vec3 cameraPos = { 0.0f, 0.0f,  3.0f };
 vec3 cameraFront = { 0.0f, 0.0f, -1.0f };
 vec3 cameraUp = { 0.0f, 1.0f,  0.0f };
+vec3 direction;
 
 int main(void)
 {
@@ -113,6 +53,9 @@ int main(void)
     glfwMakeContextCurrent(window);
 
     glfwSwapInterval(1);
+
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(window, MouseCallback);
 
     if (glewInit() != GLEW_OK)
         printf("Error initializing glew!\n");
@@ -150,10 +93,9 @@ int main(void)
     IndexBuffer ib;
     IndexBufferInitialize(&ib, indices, 6);
 
-    char* vertexShader = LoadShader("shaders/BasicVert.glsl");
-    char* fragmentShader = LoadShader("shaders/BasicFrag.glsl");
-
-    unsigned int shader = CreateShader(vertexShader, fragmentShader);
+    unsigned int vertexShaderId = CompileShader(GL_VERTEX_SHADER, "shaders/BasicVert.glsl");
+    unsigned int fragmentShaderId = CompileShader(GL_FRAGMENT_SHADER, "shaders/BasicFrag.glsl");
+    unsigned int shader = CreateShader(vertexShaderId, fragmentShaderId);
 
     GLCall(int location = glGetUniformLocation(shader, "angle"));
     GLCall(int mvpLocation = glGetUniformLocation(shader, "mvpMatrix"));
@@ -178,14 +120,14 @@ int main(void)
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        processInput(window);
+        ProcessInput(window);
 
         mat4 model, view, projection, mvpMatrix;
 
-        vec3 center;
+        vec3 target;
 
-        glm_vec3_add(cameraPos, cameraFront, center);
-        glm_lookat(cameraPos, center, cameraUp, view);
+        glm_vec3_add(cameraPos, cameraFront, target);
+        glm_lookat(cameraPos, target, cameraUp, view);
 
         glm_mat4_identity(model);
         glm_rotate(model, angle, (vec3) { 1.0f, 1.0f, 0.0f });
@@ -210,14 +152,30 @@ int main(void)
     }
 
     glDeleteProgram(shader);
-    free(vertexShader);
-    free(fragmentShader);
 
     glfwTerminate();
     return 0;
 }
 
-void processInput(GLFWwindow* window)
+void MouseCallback(GLFWwindow* window, double x, double y)
+{
+    static float prevX, prevY;
+    static bool firstCall = true;
+
+    if (firstCall)
+    {
+        prevX = x;
+        prevY = y;
+        firstCall = false;
+    }
+
+    float dx = x - prevX;
+    float dy = -(y - prevY);
+
+
+}
+
+void ProcessInput(GLFWwindow* window)
 {
     float speed = 2.0f;
     vec3 movement = { 0.0f };
