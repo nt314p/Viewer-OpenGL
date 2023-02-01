@@ -1,5 +1,6 @@
 #include "renderer.h"
 #include "shader.h"
+#include "camera.h"
 #include <cglm\cglm.h>
 #include <GL\glew.h>
 #include <GLFW\glfw3.h>
@@ -9,31 +10,18 @@
 const int WIDTH = 640;
 const int HEIGHT = 480;
 
-void ProcessInput(GLFWwindow* window);
-void MouseCallback(GLFWwindow* window, double x, double y);
+static void ProcessInput(GLFWwindow* window);
+static void MouseCallback(GLFWwindow* window, double x, double y);
 
-float deltaTime;
-float lastFrame;
-
-vec3 cameraTarget = { 0.0f };
-vec3 cameraDirection, cameraRight, cameraUp;
-vec3 up = { 0.0f, 1.0f, 0.0f };
-
-vec3 cameraPos = { 0.0f, 0.0f,  3.0f };
-vec3 cameraFront = { 0.0f, 0.0f, -1.0f };
-vec3 cameraUp = { 0.0f, 1.0f,  0.0f };
-vec3 direction;
+static float deltaTime;
+static float lastFrame;
+static vec2 mouseCoords;
+static vec2 mouseDelta;
 
 int main(void)
 {
-    glm_vec3_sub(cameraPos, cameraTarget, cameraDirection);
-    glm_cross(up, cameraDirection, cameraRight);
-    glm_normalize(cameraRight);
-    glm_cross(cameraDirection, cameraRight, cameraUp);
-
     GLFWwindow* window;
 
-    /* Initialize the library */
     if (!glfwInit())
         return -1;
 
@@ -41,19 +29,15 @@ int main(void)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(WIDTH, HEIGHT, "Hello World", NULL, NULL);
+    window = glfwCreateWindow(WIDTH, HEIGHT, "Viewer", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
         return -1;
     }
 
-    /* Make the window's context current */
     glfwMakeContextCurrent(window);
-
     glfwSwapInterval(1);
-
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, MouseCallback);
 
@@ -114,6 +98,8 @@ int main(void)
 
     float angle = 0;
 
+    CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
+
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
@@ -122,18 +108,12 @@ int main(void)
 
         ProcessInput(window);
 
-        mat4 model, view, projection, mvpMatrix;
-
-        vec3 target;
-
-        glm_vec3_add(cameraPos, cameraFront, target);
-        glm_lookat(cameraPos, target, cameraUp, view);
+        mat4 model, mvpMatrix;
 
         glm_mat4_identity(model);
         glm_rotate(model, angle, (vec3) { 1.0f, 1.0f, 0.0f });
-        glm_perspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f, projection);
-        glm_mat4_mul(view, model, mvpMatrix);
-        glm_mat4_mul(projection, mvpMatrix, mvpMatrix);
+        CameraViewPerspectiveMatrix(mvpMatrix);
+        glm_mat4_mul(mvpMatrix, model, mvpMatrix);
 
         angle += 0.01;
         GLCall(glUniform1f(location, angle));
@@ -157,6 +137,9 @@ int main(void)
     return 0;
 }
 
+float yaw;
+float pitch;
+
 void MouseCallback(GLFWwindow* window, double x, double y)
 {
     static float prevX, prevY;
@@ -172,14 +155,27 @@ void MouseCallback(GLFWwindow* window, double x, double y)
     float dx = x - prevX;
     float dy = -(y - prevY);
 
+    prevX = x;
+    prevY = y;
 
+    mouseCoords[0] = x;
+    mouseCoords[1] = y;
+    mouseDelta[0] = dx;
+    mouseDelta[1] = dy;
+
+    yaw -= dx * deltaTime * 6;
+    pitch += dy * deltaTime * 6;
+
+    //printf("dx: %f; dy: %f\n", dx, dy);
+
+    CameraRotate(yaw, pitch, 0.0f);
 }
 
 void ProcessInput(GLFWwindow* window)
 {
-    float speed = 2.0f;
+    float speed = 4.0f;
     vec3 movement = { 0.0f };
-    vec3 cross;
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     {
         glfwSetWindowShouldClose(window, 1);
@@ -187,27 +183,25 @@ void ProcessInput(GLFWwindow* window)
 
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     {
-        glm_vec3_cross(cameraFront, cameraUp, cross);
-        glm_normalize(cross);
-        glm_vec3_add(movement, cross, movement);
+        movement[0] += 1;
     }
 
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
     {
-        glm_vec3_cross(cameraFront, cameraUp, cross);
-        glm_normalize(cross);
-        glm_vec3_sub(movement, cross, movement);
+        movement[0] -= 1;
     }
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
     {
-        glm_vec3_add(movement, cameraFront, movement);
+        movement[2] -= 1;
     }
 
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
     {
-        glm_vec3_sub(movement, cameraFront, movement);
+        movement[2] += 1;
     }
 
-    glm_vec3_muladds(movement, speed * deltaTime, cameraPos);
+    glm_vec3_scale(movement, deltaTime * speed, movement);
+
+    CameraTranslateRelative(movement);
 }

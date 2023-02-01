@@ -1,17 +1,41 @@
 #include "camera.h"
 #include <string.h>
 
-Camera DEFAULT_CAMERA = {
-    { 0.0f, 0.0f, 0.0f }, // position
-    { 1.0f, 0.0f, 0.0f }, // right
-    { 0.0f, 1.0f, 0.0f }, // up
-    { 0.0f, 0.0f, 1.0f }, // forward
-};
+static vec3 position = { 0.0f, 0.0f, 0.0f };
+static vec3 right = { 1.0f, 0.0f, 0.0f };
+static vec3 up = { 0.0f, 1.0f, 0.0f };
+static vec3 forward = { 0.0f, 0.0f, 1.0f };
 
-// Initializes camera. Definitely not cursed
-void CameraInitialize(Camera* camera)
+static float fov = 45.0f;
+static float aspect = 16.0f / 9.0f;
+static float near = 0.1f;
+static float far = 100.0f;
+static mat4 projection;
+
+// Initializes perspective projection parameters and sets
+// the projection type to perspective
+void CameraUsePerspective(float fovY, float aspectRatio, float nearClip, float farClip)
 {
-    memcpy(camera, &DEFAULT_CAMERA, sizeof(DEFAULT_CAMERA));
+    fov = fovY;
+    aspect = aspectRatio;
+    near = nearClip;
+    far = farClip;
+    glm_perspective(fov, aspect, near, far, projection);
+}
+
+// Initializes orthographic projection parameters and sets
+// the projection type to orthographic
+void CameraUseOrthographic()
+{
+    // TODO
+}
+
+// Returns P * V where P and V are the perspective and
+// view matrices for the camera respectively
+void CameraViewPerspectiveMatrix(mat4 dest)
+{
+    CameraViewMatrix(dest);
+    glm_mat4_mul(projection, dest, dest);    
 }
 
 /*
@@ -50,36 +74,60 @@ view space. So we can compute the dot products P*X,
 P*Y, and P*Z.
 */
 
-// Computes the view matrix given a camera position and
-// the normalized forward and up directions of the camera
-void CameraViewMatrix(Camera* camera, mat4 dest)
+// Computes the view matrix of the camera
+void CameraViewMatrix(mat4 dest)
 {
-    dest[0][0] = camera->right[0];
-    dest[0][1] = camera->up[0];
-    dest[0][2] = camera->forward[0];
-    dest[1][0] = camera->right[1];
-    dest[1][1] = camera->up[1];
-    dest[1][2] = camera->forward[1];
-    dest[2][0] = camera->right[2];
-    dest[2][1] = camera->up[2];
-    dest[2][2] = camera->forward[2];
-    dest[3][0] = -glm_vec3_dot(camera->right, camera->position);
-    dest[3][1] = -glm_vec3_dot(camera->up, camera->position);
-    dest[3][2] = -glm_vec3_dot(camera->forward, camera->position);
+    dest[0][0] = right[0];
+    dest[0][1] = up[0];
+    dest[0][2] = forward[0];
+    dest[1][0] = right[1];
+    dest[1][1] = up[1];
+    dest[1][2] = forward[1];
+    dest[2][0] = right[2];
+    dest[2][1] = up[2];
+    dest[2][2] = forward[2];
+    dest[3][0] = -glm_vec3_dot(right, position);
+    dest[3][1] = -glm_vec3_dot(up, position);
+    dest[3][2] = -glm_vec3_dot(forward, position);
     dest[0][3] = dest[1][3] = dest[2][3] = 0.0f;
     dest[3][3] = 1.0f;
 }
 
 // Translates the camera in worldspace
-void CameraTranslate(Camera* camera, vec3 translation)
+void CameraTranslate(vec3 translation)
 {
-    glm_vec3_add(translation, camera->position, camera->position);
+    glm_vec3_add(translation, position, position);
 }
 
 // Translates the camera in viewspace/camera space
-void CameraTranslateRelative(Camera* camera, vec3 translation)
+void CameraTranslateRelative(vec3 translation)
 {
-    glm_vec3_muladds(camera->right, translation[0], camera->position);
-    glm_vec3_muladds(camera->up, translation[1], camera->position);
-    glm_vec3_muladds(camera->forward, translation[2], camera->position);
+    glm_vec3_muladds(right, translation[0], position);
+    glm_vec3_muladds(up, translation[1], position);
+    glm_vec3_muladds(forward, translation[2], position);
+}
+
+void CameraRotate(float yaw, float pitch, float roll)
+{
+    // pitch = a
+    // yaw = b
+    // roll = g
+    float ca = cosf(glm_rad(pitch)); // rotation around x axis
+    float sa = sinf(glm_rad(pitch));
+    float cb = cosf(glm_rad(yaw)); // rotation around y axis
+    float sb = sinf(glm_rad(yaw));
+    float cg = cosf(glm_rad(roll)); // rotation around z axis
+    float sg = sinf(glm_rad(roll));
+
+    right[0] = cb * cg;
+    right[1] = cb * sg;
+    right[2] = -sb;
+
+    up[0] = sa * sb * cg - ca * sg;
+    up[1] = sa * sb * sg + ca * cg;
+    up[2] = sa * cb;
+
+    forward[0] = ca * sb * cg + sa * sg;
+    forward[1] = ca * sb * sg - sa * cg;
+    forward[2] = ca * cb;
 }
