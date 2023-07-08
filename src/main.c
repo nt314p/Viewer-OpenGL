@@ -1,14 +1,16 @@
 #include "renderer.h"
 #include "shader.h"
 #include "camera.h"
+#include "model_parser.h"
+#include "polygon.h"
 #include <cglm\cglm.h>
 #include <GL\glew.h>
 #include <GLFW\glfw3.h>
 #include <stdio.h>
 #include <malloc.h>
 
-const int WIDTH = 640;
-const int HEIGHT = 480;
+const int WIDTH = 800;
+const int HEIGHT = 600;
 
 static void ProcessInput(GLFWwindow* window);
 static void MouseCallback(GLFWwindow* window, double x, double y);
@@ -17,6 +19,28 @@ static float deltaTime;
 static float lastFrame;
 static vec2 mouseCoords;
 static vec2 mouseDelta;
+
+// Returns the length of the file
+int ReadModel(const char* filePath, char* buffer)
+{
+    FILE* file = fopen(filePath, "r");
+
+    if (file == NULL)
+    {
+        printf("Error opening file at path: %s\n", filePath);
+        return -1;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long length = ftell(file);
+
+    fseek(file, 0, SEEK_SET);
+    long actualLength = fread(buffer, 1, length, file);
+    buffer[actualLength] = '\0';
+    fclose(file);
+
+    return actualLength;
+}
 
 int main(void)
 {
@@ -46,36 +70,50 @@ int main(void)
 
     printf("%s\n", glGetString(GL_VERSION));
 
-    float positions[] = {
-        -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
-        0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-        -0.5f, 0.5f, 1.0f, 0.0f, 1.0f
-    };
+    char* buffer = malloc(32 * 1024); // allocate 32K
 
-    unsigned int indices[] = {
-        0, 1, 2,
-        2, 3, 0
-    };
+    int modelLength = ReadModel("elephant.obj", buffer);
+    if (modelLength == -1) return -1;
+
+    int modelCounts[2];
+    GetModelBufferCounts(buffer, modelLength, modelCounts);
+    printf("V: %d; F: %d\n", modelCounts[0], modelCounts[1]);
+
+    unsigned int vertexCount = modelCounts[0];
+    unsigned int faceCount = modelCounts[1];
+    float* vertices = malloc(vertexCount * 3 * sizeof(float));
+    unsigned int* faces = malloc(faceCount * 3 * sizeof(unsigned int));
+
+    ParseModel(buffer, modelLength, vertices, vertexCount, faces, faceCount);
+
+    // for (int i = 0; i < vertexCount * 3; i += 3)
+    // {
+    //     printf("V: %f %f %f\n", vertices[i], vertices[i + 1], vertices[i + 2]);
+    // }
+
+    // for (int i = 0; i < faceCount * 3; i += 3)
+    // {
+    //     printf("F: %d %d %d\n", faces[i], faces[i + 1], faces[i + 2]);
+    // }
 
     unsigned int vao;
     GLCall(glGenVertexArrays(1, &vao));
     GLCall(glBindVertexArray(vao));
 
     VertexBuffer vb;
-    VertexBufferInitialize(&vb, positions, sizeof(positions));
+    VertexBufferInitialize(&vb, vertices, vertexCount * 3 * sizeof(float));
 
     // position attribute (stride is 5 * sizeof(float))
-    GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0));
+    GLCall(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0));
     GLCall(glEnableVertexAttribArray(0));
 
     // color attribute (offset is 2 * sizeof(float))
-    GLCall(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,
-        5 * sizeof(float), (void*)(2 * sizeof(float))));
-    GLCall(glEnableVertexAttribArray(1));
+    // GLCall(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,
+    //     5 * sizeof(float), (void*)(2 * sizeof(float))));
+    // GLCall(glEnableVertexAttribArray(1));
 
     IndexBuffer ib;
-    IndexBufferInitialize(&ib, indices, 6);
+    IndexBufferInitialize(&ib, faces, faceCount * 3);
 
     unsigned int vertexShaderId = CompileShader(GL_VERTEX_SHADER, "shaders/BasicVert.glsl");
     unsigned int fragmentShaderId = CompileShader(GL_FRAGMENT_SHADER, "shaders/BasicFrag.glsl");
@@ -96,7 +134,15 @@ int main(void)
 
     GLCall(glClearColor(0.1f, 0.15f, 0.2f, 1.0f));
 
+    GLCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
+
     float angle = 0;
+    free(buffer);
+    
+    GLCall(glBindVertexArray(vao));
+
+    Polygon circle;
+    PolygonCircle(&circle, 3, 1024);
 
     CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
 
@@ -111,11 +157,11 @@ int main(void)
         mat4 model, mvpMatrix;
 
         glm_mat4_identity(model);
-        glm_rotate(model, angle, (vec3) { 1.0f, 1.0f, 0.0f });
+        // glm_rotate(model, angle, (vec3) { 0.0f, 1.0f, 0.0f });
         CameraViewPerspectiveMatrix(mvpMatrix);
         glm_mat4_mul(mvpMatrix, model, mvpMatrix);
 
-        angle += 0.01;
+        //angle += 0.01;
         GLCall(glUniform1f(location, angle));
 
         GLCall(glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, mvpMatrix[0]));
@@ -123,9 +169,13 @@ int main(void)
         GLCall(glClear(GL_COLOR_BUFFER_BIT));
 
         GLCall(glBindVertexArray(vao));
-        IndexBufferBind(&ib);
+        // VertexBufferBind(&vb);
+        // IndexBufferBind(&ib);
 
-        GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL));
+        // faceCount * 3
+        //GLCall(glDrawElements(GL_TRIANGLES, faceCount * 3, GL_UNSIGNED_INT, NULL));
+        
+        PolygonDraw(&circle);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -171,32 +221,39 @@ void MouseCallback(GLFWwindow* window, double x, double y)
     CameraRotate(yaw, pitch, 0.0f);
 }
 
+int KeyPressed(GLFWwindow* window, int key);
+
+inline int KeyPressed(GLFWwindow* window, int key)
+{
+    return glfwGetKey(window, key) == GLFW_PRESS;
+}
+
 void ProcessInput(GLFWwindow* window)
 {
     float speed = 4.0f;
     vec3 movement = { 0.0f };
 
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+    if (KeyPressed(window, GLFW_KEY_ESCAPE))
     {
         glfwSetWindowShouldClose(window, 1);
     }
 
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    if (KeyPressed(window, GLFW_KEY_D))
     {
         movement[0] += 1;
     }
 
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    if (KeyPressed(window, GLFW_KEY_A))
     {
         movement[0] -= 1;
     }
 
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    if (KeyPressed(window, GLFW_KEY_W))
     {
         movement[2] -= 1;
     }
 
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    if (KeyPressed(window, GLFW_KEY_S))
     {
         movement[2] += 1;
     }
