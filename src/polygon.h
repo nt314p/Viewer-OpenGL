@@ -11,6 +11,6 @@ typedef struct Polygon {
     int vertexCount;
 } Polygon;
 
-void PolygonCircle(Polygon* polygon, float radius, int vertexCount);
+void PolygonCircle(Polygon* polygon, float radius);
 void PolygonDraw(Polygon* polygon);
 void PolygonFree(Polygon* polygon);

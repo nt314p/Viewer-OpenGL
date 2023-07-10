@@ -1,24 +1,38 @@
 #include "polygon.h"
 
-void PolygonCircle(Polygon* polygon, float radius, int vertexCount) {
-    polygon->vertexCount = vertexCount;
-    polygon->vertices = malloc(sizeof(vec3) * (vertexCount + 2));
-    memset(polygon->vertices, 0, sizeof(vec3) * (vertexCount + 2));
+#define CircleVertexCount 60
+vec3 UnitCircleVertices[CircleVertexCount + 2];
+VertexBuffer UnitCircleVertexBuffer;
+bool IsUnitCircleVerticesInitialized = false;
 
-    glm_mat4_identity(polygon->transform);
-    for (int i = 0; i <= vertexCount; i++) {
-        int index = i + 1;
-        float angle = (2 * M_PI / vertexCount) * i;
+void PolygonCircle(Polygon* polygon, float radius) {
+    // Add two vertices. One for the center and the other for the final vertex
+    // that must overlap with the first vertex on the circle
+    if (!IsUnitCircleVerticesInitialized) {
+        memset(UnitCircleVertices, 0, sizeof(UnitCircleVertices));
+        for (int i = 0; i <= CircleVertexCount; i++) {
+            int index = i + 1;
+            float angle = (2 * M_PI / CircleVertexCount) * i;
 
-        float x = radius * cosf(angle);
-        float y = radius * sinf(angle);
-        polygon->vertices[index][0] = x;
-        polygon->vertices[index][1] = y;
+            float x = cosf(angle);
+            float y = sinf(angle);
+            UnitCircleVertices[index][0] = x;
+            UnitCircleVertices[index][1] = y;
+        }
+
+        VertexBufferInitialize(&UnitCircleVertexBuffer, UnitCircleVertices, sizeof(UnitCircleVertices));
+        GLCall(glEnableVertexAttribArray(0));
+        GLCall(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0));
+
+        IsUnitCircleVerticesInitialized = true;
     }
 
-    VertexBufferInitialize(&polygon->vertexBuffer, polygon->vertices, sizeof(vec3) * (vertexCount + 2));
-    GLCall(glEnableVertexAttribArray(0));
-    GLCall(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0));
+    polygon->vertexCount = CircleVertexCount;
+    polygon->vertices = UnitCircleVertices;
+    polygon->vertexBuffer = UnitCircleVertexBuffer;
+
+    glm_mat4_identity(polygon->transform);
+    glm_mat4_scale(polygon->transform, radius);
 }
 
 void PolygonDraw(Polygon* polygon) {
@@ -27,5 +41,5 @@ void PolygonDraw(Polygon* polygon) {
 }
 
 void PolygonFree(Polygon* polygon) {
-    free(polygon->vertices);
+    free(polygon->vertices); // yeah this is completely bugged if you free a circle
 }

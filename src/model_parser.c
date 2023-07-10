@@ -1,7 +1,59 @@
 #include "model_parser.h"
+#include "renderer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <malloc.h>
+#include <cglm\cglm.h>
+
+// Returns the length of the file
+int ReadModel(const char* filePath, char* buffer)
+{
+    FILE* file = fopen(filePath, "r");
+
+    if (file == NULL)
+    {
+        printf("Error opening file at path: %s\n", filePath);
+        return -1;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long length = ftell(file);
+
+    fseek(file, 0, SEEK_SET);
+    long actualLength = fread(buffer, 1, length, file);
+    buffer[actualLength] = '\0';
+    fclose(file);
+
+    return actualLength;
+}
+
+// VAO must be bound before call
+int ModelToBuffers(const char* filePath, VertexBuffer* vb, IndexBuffer* ib) {
+    char* buffer = malloc(8 * 1024); // allocate 8K
+
+    int modelLength = ReadModel(filePath, buffer);
+    if (modelLength == -1) return -1;
+
+    int modelCounts[2];
+    GetModelBufferCounts(buffer, modelLength, modelCounts);
+    printf("V: %d; F: %d\n", modelCounts[0], modelCounts[1]);
+
+    unsigned int vertexCount = modelCounts[0];
+    unsigned int faceCount = modelCounts[1];
+    float* vertices = malloc(vertexCount * sizeof(vec3));
+    unsigned int* faces = malloc(faceCount * 3 * sizeof(unsigned int));
+
+    ParseModel(buffer, modelLength, vertices, vertexCount, faces, faceCount);
+    free(buffer);
+
+    VertexBufferInitialize(vb, vertices, vertexCount * sizeof(vec3));
+    GLCall(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0));
+    GLCall(glEnableVertexAttribArray(0));
+
+    IndexBufferInitialize(ib, faces, faceCount * 3);
+    
+    return 0;
+}
 
 // counts array
 // Index 0: vertex counts
