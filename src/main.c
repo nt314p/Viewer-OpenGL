@@ -14,11 +14,16 @@ const int HEIGHT = 720;
 
 static void ProcessInput(GLFWwindow* window);
 static void MouseCallback(GLFWwindow* window, double x, double y);
+static void ScrollCallback(GLFWwindow* window, double xOffset, double yOffset);
 
 static float deltaTime;
 static float lastFrame;
 static vec2 mouseCoords;
+static vec2 scrollDelta;
 static vec2 mouseDelta;
+
+float yaw;
+float pitch;
 
 float RandomRange(float min, float max) {
     return rand() * (max - min) / RAND_MAX + min;
@@ -46,6 +51,7 @@ int main(void)
     glfwSwapInterval(1);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, MouseCallback);
+    glfwSetScrollCallback(window, ScrollCallback);
 
     if (glewInit() != GLEW_OK)
         printf("Error initializing glew!\n");
@@ -63,13 +69,12 @@ int main(void)
     int mvpMatrixId = GetShaderUniformId(shaderId, "mvpMatrix");
 
     GLCall(glUseProgram(shaderId));
-    GLCall(glBindVertexArray(vao));
 
     //GLCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
 
     GLCall(glClearColor(0.1f, 0.15f, 0.2f, 1.0f));
 
-    const int numCircles = 100;
+    const int numCircles = 2000;
     Polygon* circles = malloc(sizeof(Polygon) * numCircles);
     for (int i = 0; i < numCircles; i++) {
         Polygon* circle = circles + i;
@@ -86,9 +91,12 @@ int main(void)
         glm_rotate(transform, RandomRange(0, 2 * M_PI), (vec3) { x, y, z });
     }
 
-    CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
+    //CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
+    CameraUseOrthographic(((float)WIDTH) / HEIGHT, 10.0f);
 
     mat4 vpMatrix, mvpMatrix;
+
+    float zoom = 10.0f;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -96,9 +104,15 @@ int main(void)
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        // printf("%f\n", (deltaTime));
+        printf("%d\n", (int)(1 / deltaTime));
 
         ProcessInput(window);
+
+        //CameraRotate(yaw, pitch, 0.0f);
+
+        zoom += scrollDelta[1];
+        zoom = fmax(zoom, 0.1f);
+        CameraZoom(zoom);
 
         CameraViewPerspectiveMatrix(vpMatrix);
 
@@ -122,8 +136,11 @@ int main(void)
     return 0;
 }
 
-float yaw;
-float pitch;
+static void ScrollCallback(GLFWwindow* window, double xOffset, double yOffset)
+{
+    scrollDelta[0] = xOffset;
+    scrollDelta[1] = yOffset;
+}
 
 void MouseCallback(GLFWwindow* window, double x, double y)
 {
@@ -152,8 +169,6 @@ void MouseCallback(GLFWwindow* window, double x, double y)
     pitch += dy * deltaTime * 6;
 
     //printf("dx: %f; dy: %f\n", dx, dy);
-
-    CameraRotate(yaw, pitch, 0.0f);
 }
 
 int KeyPressed(GLFWwindow* window, int key);
@@ -165,7 +180,7 @@ inline int KeyPressed(GLFWwindow* window, int key)
 
 void ProcessInput(GLFWwindow* window)
 {
-    float speed = 4.0f;
+    float speed = 6.0f;
     vec3 movement = { 0.0f };
 
     if (KeyPressed(window, GLFW_KEY_ESCAPE))
@@ -185,12 +200,12 @@ void ProcessInput(GLFWwindow* window)
 
     if (KeyPressed(window, GLFW_KEY_W))
     {
-        movement[2] -= 1;
+        movement[1] += 1;
     }
 
     if (KeyPressed(window, GLFW_KEY_S))
     {
-        movement[2] += 1;
+        movement[1] -= 1;
     }
 
     glm_vec3_scale(movement, deltaTime * speed, movement);

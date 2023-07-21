@@ -10,6 +10,7 @@ static float fov = 45.0f;
 static float aspect = 16.0f / 9.0f;
 static float near = 0.1f;
 static float far = 100.0f;
+static float orthoSize = 10.0f;
 static mat4 projection;
 
 // Initializes perspective projection parameters and sets
@@ -25,13 +26,17 @@ void CameraUsePerspective(float fovY, float aspectRatio, float nearClip, float f
 
 // Initializes orthographic projection parameters and sets
 // the projection type to orthographic
-void CameraUseOrthographic()
+void CameraUseOrthographic(float aspectRatio, float size)
 {
-    // TODO
+    aspect = aspectRatio;
+    orthoSize = size;
+    glm_ortho_default_s(aspectRatio, size, projection);
 }
 
 // Returns P * V where P and V are the perspective and
 // view matrices for the camera respectively
+// I have no idea if this still works with ortho
+// cameras but it seems like it does
 void CameraViewPerspectiveMatrix(mat4 dest)
 {
     CameraViewMatrix(dest);
@@ -105,6 +110,12 @@ void CameraTranslateRelative(vec3 translation)
     glm_vec3_muladds(right, translation[0], position);
     glm_vec3_muladds(up, translation[1], position);
     glm_vec3_muladds(forward, translation[2], position);
+}
+
+// for orthographic camera
+void CameraZoom(float size)
+{
+    glm_ortho_default_s(aspect, size, projection);
 }
 
 void CameraRotate(float yaw, float pitch, float roll)

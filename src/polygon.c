@@ -5,6 +5,9 @@ vec3 UnitCircleVertices[CircleVertexCount + 2];
 VertexBuffer UnitCircleVertexBuffer;
 bool IsUnitCircleVerticesInitialized = false;
 
+// Specialized triangulation for circles?
+// https://www.humus.name/index.php?page=News&ID=228
+
 void PolygonCircle(Polygon* polygon, float radius) {
     // Add two vertices. One for the center and the other for the final vertex
     // that must overlap with the first vertex on the circle
@@ -38,6 +41,7 @@ void PolygonCircle(Polygon* polygon, float radius) {
 void PolygonDraw(Polygon* polygon) {
     VertexBufferBind(&polygon->vertexBuffer);
     GLCall(glDrawArrays(GL_TRIANGLE_FAN, 0, (polygon->vertexCount + 2)));
+    // bugged if not drawing a circle because there shouldn't be +2
 }
 
 void PolygonFree(Polygon* polygon) {
