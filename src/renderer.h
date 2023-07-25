@@ -13,16 +13,23 @@ int GLLogCall(const char* function, const char* file, int line);
 
 typedef struct VertexBuffer
 {
-    unsigned int rendererId;
+    unsigned int bufferId;
     void* data;
 } VertexBuffer;
 
 typedef struct IndexBuffer
 {
-    unsigned int rendererId;
+    unsigned int bufferId;
     unsigned int count; // how many indices are contained in the buffer
     void* data;
 } IndexBuffer;
+
+typedef struct UniformBuffer
+{
+    unsigned int bufferId;
+    unsigned int size;
+    void* data;
+} UniformBuffer;
 
 void VertexBufferInitialize(VertexBuffer* vertexBuffer, void* data, unsigned int size);
 void VertexBufferBind(VertexBuffer* vertexBuffer);
@@ -34,3 +41,9 @@ void IndexBufferBind(IndexBuffer* indexBuffer);
 void IndexBufferUnbind();
 void IndexBufferDelete(IndexBuffer* indexBuffer);
 
+void UniformBufferInitialize(UniformBuffer* uniformBuffer, void* data, unsigned int size, GLenum usageHint);
+void UniformBufferUpdate(UniformBuffer* uniformBuffer);
+void UniformBufferBind(UniformBuffer* uniformBuffer);
+void UniformBufferBindPoint(UniformBuffer* uniformBuffer, unsigned int index);
+void UniformBufferUnbind();
+void UniformBufferDelete(UniformBuffer* uniformBuffer);

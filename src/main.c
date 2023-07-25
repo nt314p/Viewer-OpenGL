@@ -25,9 +25,17 @@ static vec2 mouseDelta;
 float yaw;
 float pitch;
 
-float RandomRange(float min, float max) {
+float RandomRange(float min, float max)
+{
     return rand() * (max - min) / RAND_MAX + min;
 }
+
+typedef struct Circle
+{
+    float radius;
+    vec2 position;
+    vec3 color;
+} Circle;
 
 int main(void)
 {
@@ -62,37 +70,56 @@ int main(void)
     GLCall(glGenVertexArrays(1, &vao));
     GLCall(glBindVertexArray(vao));
 
-    unsigned int vertexShaderId = CompileShader(GL_VERTEX_SHADER, "shaders/BasicVert.glsl");
+    unsigned int vertexShaderId = CompileShader(GL_VERTEX_SHADER, "shaders/InstancedCircle.glsl");
     unsigned int fragmentShaderId = CompileShader(GL_FRAGMENT_SHADER, "shaders/BasicFrag.glsl");
     unsigned int shaderId = CreateShader(vertexShaderId, fragmentShaderId);
 
-    int mvpMatrixId = GetShaderUniformId(shaderId, "mvpMatrix");
-
     GLCall(glUseProgram(shaderId));
+
+    int mvpMatrixId = GetShaderUniformId(shaderId, "mvpMatrix");
+    int circlesBufferId = GetShaderUniformId(shaderId, "circles");
+
 
     //GLCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
 
     GLCall(glClearColor(0.1f, 0.15f, 0.2f, 1.0f));
 
-    const int numCircles = 2000;
-    Polygon* circles = malloc(sizeof(Polygon) * numCircles);
-    for (int i = 0; i < numCircles; i++) {
-        Polygon* circle = circles + i;
-        PolygonCircle(circle, RandomRange(0.5, 2));
-        float x = RandomRange(-10, 10);
-        float y = RandomRange(-10, 10);
-        float z = RandomRange(-10, 10);
-        vec4* transform = (circle)->transform;
-        glm_translate(transform, (vec3) { x, y, z });
+    const int numCircles = 10;
+    Polygon temp;
+    PolygonCircle(&temp, 1.0f); // just temp to initialize the circle verts
 
-        x = RandomRange(-10, 10);
-        y = RandomRange(-10, 10);
-        z = RandomRange(-10, 10);
-        glm_rotate(transform, RandomRange(0, 2 * M_PI), (vec3) { x, y, z });
+    // Polygon* circles = malloc(sizeof(Polygon) * numCircles);
+    // for (int i = 0; i < numCircles; i++) {
+    //     Polygon* circle = circles + i;
+    //     PolygonCircle(circle, RandomRange(0.5, 2));
+    //     float x = RandomRange(-10, 10);
+    //     float y = RandomRange(-10, 10);
+    //     float z = RandomRange(-10, 10);
+    //     vec4* transform = (circle)->transform;
+    //     glm_translate(transform, (vec3) { x, y, z });
+
+    //     x = RandomRange(-10, 10);
+    //     y = RandomRange(-10, 10);
+    //     z = RandomRange(-10, 10);
+    //     glm_rotate(transform, RandomRange(0, 2 * M_PI), (vec3) { x, y, z });
+    // }
+
+    Circle* circlesBuffer = malloc(sizeof(Circle) * numCircles);
+    for (int i = 0; i < numCircles; i++)
+    {
+        circlesBuffer[i].radius = RandomRange(1, 10);
+        circlesBuffer[i].position[0] = RandomRange(-10, 10);
+        circlesBuffer[i].position[1] = RandomRange(-10, 10);
+
+        circlesBuffer[i].color[0] = RandomRange(0, 1);
+        circlesBuffer[i].color[1] = RandomRange(0, 1);
+        circlesBuffer[i].color[2] = RandomRange(0, 1);
     }
 
-    //CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
-    CameraUseOrthographic(((float)WIDTH) / HEIGHT, 10.0f);
+    //memset(circlesBuffer, 0, sizeof(Circle) * numCircles);
+
+    CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
+    //CameraUseOrthographic(((float)WIDTH) / HEIGHT, 10.0f);
 
     mat4 vpMatrix, mvpMatrix;
 
@@ -104,11 +131,11 @@ int main(void)
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        printf("%d\n", (int)(1 / deltaTime));
+        //printf("%d\n", (int)(1 / deltaTime));
 
         ProcessInput(window);
 
-        //CameraRotate(yaw, pitch, 0.0f);
+        CameraRotate(yaw, pitch, 0.0f);
 
         zoom += scrollDelta[1];
         zoom = fmax(zoom, 0.1f);
@@ -118,13 +145,19 @@ int main(void)
 
         GLCall(glClear(GL_COLOR_BUFFER_BIT));
 
-        VertexBufferBind(&circles->vertexBuffer);
-        for (int i = 0; i < numCircles; i++) {
-            Polygon* circle = circles + i;
-            glm_mat4_mul(vpMatrix, circle->transform, mvpMatrix);
-            GLCall(glUniformMatrix4fv(mvpMatrixId, 1, GL_FALSE, mvpMatrix[0]));
-            PolygonDraw(circle);
-        }
+        VertexBufferBind(&temp.vertexBuffer);
+        GLCall(glUniformMatrix4fv(mvpMatrixId, 1, GL_FALSE, vpMatrix[0]));
+        GLCall(glUniformMatrix2x3fv(circlesBufferId, numCircles, GL_FALSE, (float*)circlesBuffer));
+        GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 62, numCircles));
+
+        // VertexBufferBind(&circles->vertexBuffer);
+        // for (int i = 0; i < numCircles; i++)
+        // {
+        //     Polygon* circle = circles + i;
+        //     glm_mat4_mul(vpMatrix, circle->transform, mvpMatrix);
+        //     GLCall(glUniformMatrix4fv(mvpMatrixId, 1, GL_FALSE, mvpMatrix[0]));
+        //     PolygonDraw(circle);
+        // }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -167,7 +200,6 @@ void MouseCallback(GLFWwindow* window, double x, double y)
 
     yaw -= dx * deltaTime * 6;
     pitch += dy * deltaTime * 6;
-
     //printf("dx: %f; dy: %f\n", dx, dy);
 }
 
