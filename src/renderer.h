@@ -11,6 +11,8 @@
 void GLClearErrors();
 int GLLogCall(const char* function, const char* file, int line);
 
+// TODO: are the data and count fields for vertex and index buffers necessary
+
 typedef struct VertexBuffer
 {
     unsigned int bufferId;

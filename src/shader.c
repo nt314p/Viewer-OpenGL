@@ -13,7 +13,7 @@ static long GetFileLength(const char* filePath)
 
 // Loads the file at filePath into the buffer passed in
 // Call GetFileLength first to know how large the buffer should be
-static void LoadShader(const char* filePath, char* buffer)
+static void ShaderLoad(const char* filePath, char* buffer)
 {
     FILE* file = fopen(filePath, "r");
 
@@ -32,16 +32,19 @@ static void LoadShader(const char* filePath, char* buffer)
     fclose(file);
 }
 
-int GetShaderUniformId(unsigned int shaderId, const char* name) {
-    int uniformId = glGetUniformLocation(shaderId, name);
-    return uniformId;
+int ShaderGetUniformId(unsigned int shaderId, const char* name) {
+    return glGetUniformLocation(shaderId, name);
 }
 
-unsigned int CompileShader(unsigned int type, const char* filePath)
+int ShaderGetUniformBlockIndex(unsigned int shaderId, const char* name) {
+    return glGetUniformBlockIndex(shaderId, name);
+}
+
+unsigned int ShaderCompile(unsigned int type, const char* filePath)
 {
     long fileLength = GetFileLength(filePath);
     char* buffer = malloc(fileLength + 1);
-    LoadShader(filePath, buffer);
+    ShaderLoad(filePath, buffer);
 
     unsigned int id = glCreateShader(type);
     glShaderSource(id, 1, (const char* const*) &buffer, NULL);
@@ -64,8 +67,9 @@ unsigned int CompileShader(unsigned int type, const char* filePath)
 }
 
 // Creates a shader program with a vertex and fragment shader
+// Deletes the passed in vertex and fragment shader
 // Returns the id of the shader
-unsigned int CreateShader(unsigned int vertexShaderId, unsigned int fragmentShaderId)
+unsigned int ShaderCreate(unsigned int vertexShaderId, unsigned int fragmentShaderId)
 {
     unsigned int programId = glCreateProgram();
 
