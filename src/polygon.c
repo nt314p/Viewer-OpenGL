@@ -44,8 +44,8 @@ void InitializeUnitSquare()
     glm_vec2_copy((vec3) { 0.0f, 1.0f, 0.0f }, UnitSquareVertices[3]);
 
     VertexBufferInitialize(&UnitSquareVertexBuffer, UnitSquareVertices, sizeof(UnitSquareVertices));
-    GLCall(glEnableVertexAttribArray(0));
-    GLCall(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0));
+    GLCall(glEnableVertexAttribArray(1));
+    GLCall(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0));
 }
 
 // Initializes vertex buffers for unit polygons

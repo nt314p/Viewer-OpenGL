@@ -145,7 +145,8 @@ int main(void)
         //UniformBufferUpdate(&circles);
 
         PolygonBindUnitCircle();
-        
+
+
         GLCall(glUniformMatrix4fv(mvpMatrixId, 1, GL_FALSE, vpMatrix[0]));
         GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 52, numCircles));
 
