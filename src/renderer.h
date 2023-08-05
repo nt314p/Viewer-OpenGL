@@ -33,6 +33,11 @@ typedef struct UniformBuffer
     void* data;
 } UniformBuffer;
 
+void VertexArrayInitialize(unsigned int* vertexArrayId);
+void VertexArrayBind(unsigned int vertexArrayId);
+void VertexArrayUnbind();
+void VertexArrayDelete(unsigned int vertexArrayId);
+
 void VertexBufferInitialize(VertexBuffer* vertexBuffer, void* data, unsigned int size);
 void VertexBufferBind(VertexBuffer* vertexBuffer);
 void VertexBufferUnbind();
@@ -49,3 +54,5 @@ void UniformBufferBind(UniformBuffer* uniformBuffer);
 void UniformBufferBindPoint(UniformBuffer* uniformBuffer, unsigned int index);
 void UniformBufferUnbind();
 void UniformBufferDelete(UniformBuffer* uniformBuffer);
+
+void VertexAttribPointerFloats(unsigned int index, int size);

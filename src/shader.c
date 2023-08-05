@@ -5,7 +5,8 @@
 static long GetFileLength(const char* filePath)
 {
     FILE* file = fopen(filePath, "r");
-    if (file == NULL) return 0;
+    if (file == NULL)
+        return 0;
 
     fseek(file, 0, SEEK_END);
     return ftell(file);
@@ -32,11 +33,13 @@ static void ShaderLoad(const char* filePath, char* buffer)
     fclose(file);
 }
 
-int ShaderGetUniformId(unsigned int shaderId, const char* name) {
+int ShaderGetUniformId(unsigned int shaderId, const char* name)
+{
     return glGetUniformLocation(shaderId, name);
 }
 
-int ShaderGetUniformBlockIndex(unsigned int shaderId, const char* name) {
+int ShaderGetUniformBlockIndex(unsigned int shaderId, const char* name)
+{
     return glGetUniformBlockIndex(shaderId, name);
 }
 
@@ -47,14 +50,15 @@ unsigned int ShaderCompile(unsigned int type, const char* filePath)
     ShaderLoad(filePath, buffer);
 
     unsigned int id = glCreateShader(type);
-    glShaderSource(id, 1, (const char* const*) &buffer, NULL);
+    glShaderSource(id, 1, (const char* const*)&buffer, NULL);
     glCompileShader(id);
 
     int result;
     glGetShaderiv(id, GL_COMPILE_STATUS, &result);
 
     free(buffer);
-    if (result != GL_FALSE) return id;
+    if (result != GL_FALSE)
+        return id;
 
     int length;
     glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
@@ -69,7 +73,7 @@ unsigned int ShaderCompile(unsigned int type, const char* filePath)
 // Creates a shader program with a vertex and fragment shader
 // Deletes the passed in vertex and fragment shader
 // Returns the id of the shader
-unsigned int ShaderCreate(unsigned int vertexShaderId, unsigned int fragmentShaderId)
+unsigned int ShaderCreateFromIds(unsigned int vertexShaderId, unsigned int fragmentShaderId)
 {
     unsigned int programId = glCreateProgram();
 
@@ -82,4 +86,12 @@ unsigned int ShaderCreate(unsigned int vertexShaderId, unsigned int fragmentShad
     glDeleteShader(fragmentShaderId);
 
     return programId;
+}
+
+unsigned int ShaderCreate(const char* vertexShaderFilePath, const char* fragmentShaderFilePath)
+{
+    unsigned int vertexShaderId = ShaderCompile(GL_VERTEX_SHADER, vertexShaderFilePath);
+    unsigned int fragmentShaderId = ShaderCompile(GL_FRAGMENT_SHADER, fragmentShaderFilePath);
+
+    return ShaderCreateFromIds(vertexShaderId, fragmentShaderId);
 }

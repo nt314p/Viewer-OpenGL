@@ -4,7 +4,8 @@
 
 void GLClearErrors()
 {
-    while (glGetError() != GL_NO_ERROR);
+    while (glGetError() != GL_NO_ERROR)
+        ;
 }
 
 int GLLogCall(const char* function, const char* file, int line)
@@ -18,6 +19,26 @@ int GLLogCall(const char* function, const char* file, int line)
     }
 
     return 1;
+}
+
+void VertexArrayInitialize(unsigned int* vertexArrayId)
+{
+    GLCall(glGenVertexArrays(1, vertexArrayId));
+}
+
+void VertexArrayBind(unsigned int vertexArrayId)
+{
+    GLCall(glBindVertexArray(vertexArrayId));
+}
+
+void VertexArrayUnbind()
+{
+    GLCall(glBindVertexArray(0));
+}
+
+void VertexArrayDelete(unsigned int vertexArrayId)
+{
+    GLCall(glDeleteVertexArrays(1, &vertexArrayId));
 }
 
 void VertexBufferInitialize(VertexBuffer* vertexBuffer, void* data, unsigned int size)
@@ -100,4 +121,12 @@ void UniformBufferUnbind()
 void UniformBufferDelete(UniformBuffer* uniformBuffer)
 {
     GLCall(glDeleteBuffers(1, &uniformBuffer->bufferId));
+}
+
+// Enables and configures an attribute at the specified index
+// The attribute is a series of floats (number specified by size)
+void VertexAttribPointerFloats(unsigned int index, int size)
+{
+    GLCall(glEnableVertexAttribArray(index));
+    GLCall(glVertexAttribPointer(index, size, GL_FLOAT, GL_FALSE, 0, 0));
 }

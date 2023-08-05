@@ -30,14 +30,6 @@ float RandomRange(float min, float max)
     return rand() * (max - min) / RAND_MAX + min;
 }
 
-typedef struct Circle
-{
-    vec3 color;
-    float radius;
-    vec2 position;
-    vec2 padding;
-} Circle;
-
 int main(void)
 {
     GLFWwindow* window;
@@ -71,35 +63,41 @@ int main(void)
     GLCall(glGenVertexArrays(1, &vao));
     GLCall(glBindVertexArray(vao));
 
-    unsigned int vertexShaderId = ShaderCompile(GL_VERTEX_SHADER, "shaders/InstancedCircle.glsl");
-    unsigned int fragmentShaderId = ShaderCompile(GL_FRAGMENT_SHADER, "shaders/BasicFrag.glsl");
-    unsigned int shaderId = ShaderCreate(vertexShaderId, fragmentShaderId);
+    unsigned int rectShaderId = ShaderCreate("shaders/InstancedRectangle.glsl", "shaders/BasicFrag.glsl");
+    unsigned int circleShaderId = ShaderCreate("shaders/InstancedCircle.glsl", "shaders/BasicFrag.glsl");
 
-    GLCall(glUseProgram(shaderId));
+    GLCall(glUseProgram(rectShaderId));
 
-    int mvpMatrixId = ShaderGetUniformId(shaderId, "mvpMatrix");
-    int circlesBufferIndex = ShaderGetUniformBlockIndex(shaderId, "Circles");
+    mat4 vpMatrix;
+    UniformBuffer vpMatrixUB;
+    UniformBufferInitialize(&vpMatrixUB, vpMatrix, sizeof(mat4), GL_DYNAMIC_DRAW);
+
+    int mvpMatrixId = ShaderGetUniformId(rectShaderId, "mvpMatrix");
+    int rectsBufferIndex = ShaderGetUniformBlockIndex(rectShaderId, "Rectangles");
+
+    int mvpMatrixId2 = ShaderGetUniformId(circleShaderId, "mvpMatrix");
+    int circlesBufferIndex = ShaderGetUniformBlockIndex(circleShaderId, "Circles");
 
     int maxUniformBlockSize;
     GLCall(glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &maxUniformBlockSize));
 
-    printf("Circle buffer id is: %d\n", circlesBufferIndex);
+    //printf("Circle buffer id is: %d\n", circlesBufferIndex);
     printf("Max buffer size is %d bytes\n", maxUniformBlockSize);
 
-    GLCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
+    // GLCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
 
     GLCall(glClearColor(0.1f, 0.15f, 0.2f, 1.0f));
 
     PolygonInitialize();
 
-    const int numCircles = 100000;
+    const int numCircles = 200;
 
     Circle* circlesBuffer = malloc(sizeof(Circle) * numCircles);
     for (int i = 0; i < numCircles; i++)
     {
         circlesBuffer[i].radius = RandomRange(0.1f, 2);
-        circlesBuffer[i].position[0] = RandomRange(-300, 300);
-        circlesBuffer[i].position[1] = RandomRange(-300, 300);
+        circlesBuffer[i].position[0] = RandomRange(-10, 10);
+        circlesBuffer[i].position[1] = RandomRange(-10, 10);
 
         circlesBuffer[i].color[0] = RandomRange(0, 1);
         circlesBuffer[i].color[1] = RandomRange(0, 1);
@@ -110,10 +108,27 @@ int main(void)
     UniformBufferInitialize(&circles, circlesBuffer, sizeof(Circle) * numCircles, GL_DYNAMIC_DRAW);
     UniformBufferBindPoint(&circles, circlesBufferIndex);
 
-    //CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
-    CameraUseOrthographic(((float)WIDTH) / HEIGHT, 10.0f);
+    const int numRects = 200;
+    Rectangle* rectsBuffer = malloc(sizeof(Rectangle) * numRects);
+    for (int i = 0; i < numRects; i++)
+    {
+        rectsBuffer[i].width = RandomRange(0.1f, 2);
+        rectsBuffer[i].height = RandomRange(0.1f, 2);
+        rectsBuffer[i].position[0] = RandomRange(-10, 10);
+        rectsBuffer[i].position[1] = RandomRange(-10, 10);
 
-    mat4 vpMatrix, mvpMatrix;
+        rectsBuffer[i].color[0] = RandomRange(0, 1);
+        rectsBuffer[i].color[1] = RandomRange(0, 1);
+        rectsBuffer[i].color[2] = RandomRange(0, 1);
+    }
+
+    UniformBuffer rects;
+    // TODO: investigate why using GL_DYNAMIC_DRAW causes flickering
+    UniformBufferInitialize(&rects, rectsBuffer, sizeof(Rectangle) * numRects, GL_STATIC_DRAW);
+    UniformBufferBindPoint(&rects, rectsBufferIndex);
+
+    // CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
+    CameraUseOrthographic(((float)WIDTH) / HEIGHT, 10.0f);
 
     float zoom = 10.0f;
 
@@ -123,11 +138,11 @@ int main(void)
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        //printf("%d\n", (int)(1 / deltaTime));
+        // printf("%d\n", (int)(1 / deltaTime));
 
         ProcessInput(window);
 
-        //CameraRotate(yaw, pitch, 0.0f);
+        // CameraRotate(yaw, pitch, 0.0f);
 
         zoom += scrollDelta[1];
         zoom = fmax(zoom, 0.1f);
@@ -142,13 +157,14 @@ int main(void)
         //     glm_vec2_rotate(circlesBuffer[i].position, RandomRange(-0.001, 0.001), circlesBuffer[i].position);
         // }
 
-        //UniformBufferUpdate(&circles);
+        // UniformBufferUpdate(&circles);
 
-        PolygonBindUnitCircle();
+        //PolygonBindUnitSquare();
 
+        PolygonBindUnitSquare();
 
-        GLCall(glUniformMatrix4fv(mvpMatrixId, 1, GL_FALSE, vpMatrix[0]));
-        GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 52, numCircles));
+        GLCall(glUniformMatrix4fv(vpMatrixId, 1, GL_FALSE, vpMatrix[0]));
+        GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, numRects));
 
         // VertexBufferBind(&circles->vertexBuffer);
         // for (int i = 0; i < numCircles; i++)
@@ -163,7 +179,7 @@ int main(void)
         glfwPollEvents();
     }
 
-    glDeleteProgram(shaderId);
+    // Delete things??
 
     glfwTerminate();
     return 0;
@@ -200,7 +216,7 @@ void MouseCallback(GLFWwindow* window, double x, double y)
 
     yaw -= dx * deltaTime * 6;
     pitch += dy * deltaTime * 6;
-    //printf("dx: %f; dy: %f\n", dx, dy);
+    // printf("dx: %f; dy: %f\n", dx, dy);
 }
 
 int KeyPressed(GLFWwindow* window, int key);
