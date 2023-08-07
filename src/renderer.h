@@ -30,6 +30,7 @@ typedef struct UniformBuffer
 {
     unsigned int bufferId;
     unsigned int size;
+    unsigned int bindingPoint;
     void* data;
 } UniformBuffer;
 
@@ -51,7 +52,7 @@ void IndexBufferDelete(IndexBuffer* indexBuffer);
 void UniformBufferInitialize(UniformBuffer* uniformBuffer, void* data, unsigned int size, GLenum usageHint);
 void UniformBufferUpdate(UniformBuffer* uniformBuffer);
 void UniformBufferBind(UniformBuffer* uniformBuffer);
-void UniformBufferBindPoint(UniformBuffer* uniformBuffer, unsigned int index);
+void UniformBufferBindPoint(UniformBuffer* uniformBuffer, unsigned int bindingPoint);
 void UniformBufferUnbind();
 void UniformBufferDelete(UniformBuffer* uniformBuffer);
 

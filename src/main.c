@@ -59,36 +59,32 @@ int main(void)
 
     printf("%s\n", glGetString(GL_VERSION));
 
-    unsigned int vao;
-    GLCall(glGenVertexArrays(1, &vao));
-    GLCall(glBindVertexArray(vao));
-
     unsigned int rectShaderId = ShaderCreate("shaders/InstancedRectangle.glsl", "shaders/BasicFrag.glsl");
     unsigned int circleShaderId = ShaderCreate("shaders/InstancedCircle.glsl", "shaders/BasicFrag.glsl");
 
-    GLCall(glUseProgram(rectShaderId));
+    int vpMatrixIndex = ShaderGetUniformBlockIndex(rectShaderId, "Matrices");
+    int rectsBufferIndex = ShaderGetUniformBlockIndex(rectShaderId, "Rectangles");
+    int circlesBufferIndex = ShaderGetUniformBlockIndex(circleShaderId, "Circles");
+
+    PolygonInitialize();
+    PolygonBindUnitSquare();
 
     mat4 vpMatrix;
     UniformBuffer vpMatrixUB;
     UniformBufferInitialize(&vpMatrixUB, vpMatrix, sizeof(mat4), GL_DYNAMIC_DRAW);
-
-    int mvpMatrixId = ShaderGetUniformId(rectShaderId, "mvpMatrix");
-    int rectsBufferIndex = ShaderGetUniformBlockIndex(rectShaderId, "Rectangles");
-
-    int mvpMatrixId2 = ShaderGetUniformId(circleShaderId, "mvpMatrix");
-    int circlesBufferIndex = ShaderGetUniformBlockIndex(circleShaderId, "Circles");
+    ShaderBindUniformBuffer(rectShaderId, "Matrices", &vpMatrixUB);
+    ShaderBindUniformBuffer(circleShaderId, "Matrices", &vpMatrixUB);
 
     int maxUniformBlockSize;
     GLCall(glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &maxUniformBlockSize));
 
-    //printf("Circle buffer id is: %d\n", circlesBufferIndex);
+    printf("Matrices buffer index is: %d\n", vpMatrixIndex);
+    printf("Rect buffer index is: %d\n", rectsBufferIndex);
     printf("Max buffer size is %d bytes\n", maxUniformBlockSize);
 
     // GLCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
 
     GLCall(glClearColor(0.1f, 0.15f, 0.2f, 1.0f));
-
-    PolygonInitialize();
 
     const int numCircles = 200;
 
@@ -96,8 +92,8 @@ int main(void)
     for (int i = 0; i < numCircles; i++)
     {
         circlesBuffer[i].radius = RandomRange(0.1f, 2);
-        circlesBuffer[i].position[0] = RandomRange(-10, 10);
-        circlesBuffer[i].position[1] = RandomRange(-10, 10);
+        circlesBuffer[i].position[0] = RandomRange(-30, 30);
+        circlesBuffer[i].position[1] = RandomRange(-30, 30);
 
         circlesBuffer[i].color[0] = RandomRange(0, 1);
         circlesBuffer[i].color[1] = RandomRange(0, 1);
@@ -105,8 +101,8 @@ int main(void)
     }
 
     UniformBuffer circles;
-    UniformBufferInitialize(&circles, circlesBuffer, sizeof(Circle) * numCircles, GL_DYNAMIC_DRAW);
-    UniformBufferBindPoint(&circles, circlesBufferIndex);
+    UniformBufferInitialize(&circles, circlesBuffer, sizeof(Circle) * numCircles, GL_STATIC_DRAW);
+    ShaderBindUniformBuffer(circleShaderId, "Circles", &circles);
 
     const int numRects = 200;
     Rectangle* rectsBuffer = malloc(sizeof(Rectangle) * numRects);
@@ -114,8 +110,8 @@ int main(void)
     {
         rectsBuffer[i].width = RandomRange(0.1f, 2);
         rectsBuffer[i].height = RandomRange(0.1f, 2);
-        rectsBuffer[i].position[0] = RandomRange(-10, 10);
-        rectsBuffer[i].position[1] = RandomRange(-10, 10);
+        rectsBuffer[i].position[0] = RandomRange(-30, 30);
+        rectsBuffer[i].position[1] = RandomRange(-30, 30);
 
         rectsBuffer[i].color[0] = RandomRange(0, 1);
         rectsBuffer[i].color[1] = RandomRange(0, 1);
@@ -125,7 +121,7 @@ int main(void)
     UniformBuffer rects;
     // TODO: investigate why using GL_DYNAMIC_DRAW causes flickering
     UniformBufferInitialize(&rects, rectsBuffer, sizeof(Rectangle) * numRects, GL_STATIC_DRAW);
-    UniformBufferBindPoint(&rects, rectsBufferIndex);
+    ShaderBindUniformBuffer(rectShaderId, "Rectangles", &rects);
 
     // CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
     CameraUseOrthographic(((float)WIDTH) / HEIGHT, 10.0f);
@@ -142,7 +138,7 @@ int main(void)
 
         ProcessInput(window);
 
-        // CameraRotate(yaw, pitch, 0.0f);
+        //CameraRotate(yaw, pitch, 0.0f);
 
         zoom += scrollDelta[1];
         zoom = fmax(zoom, 0.1f);
@@ -161,19 +157,15 @@ int main(void)
 
         //PolygonBindUnitSquare();
 
-        PolygonBindUnitSquare();
+        UniformBufferUpdate(&vpMatrixUB);
 
-        GLCall(glUniformMatrix4fv(vpMatrixId, 1, GL_FALSE, vpMatrix[0]));
+        ShaderUse(rectShaderId);
+        PolygonBindUnitSquare();
         GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, numRects));
 
-        // VertexBufferBind(&circles->vertexBuffer);
-        // for (int i = 0; i < numCircles; i++)
-        // {
-        //     Polygon* circle = circles + i;
-        //     glm_mat4_mul(vpMatrix, circle->transform, mvpMatrix);
-        //     GLCall(glUniformMatrix4fv(mvpMatrixId, 1, GL_FALSE, mvpMatrix[0]));
-        //     PolygonDraw(circle);
-        // }
+        ShaderUse(circleShaderId);
+        PolygonBindUnitCircle();
+        GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 52, numCircles));
 
         glfwSwapBuffers(window);
         glfwPollEvents();

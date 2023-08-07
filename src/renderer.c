@@ -2,6 +2,13 @@
 #include <stdio.h>
 #include <string.h>
 
+static unsigned int NextUniformBufferBindingPoint = 0;
+
+static unsigned int GetNextUniformBufferBindingPoint()
+{
+    return NextUniformBufferBindingPoint++;
+}
+
 void GLClearErrors()
 {
     while (glGetError() != GL_NO_ERROR)
@@ -90,13 +97,18 @@ void UniformBufferInitialize(UniformBuffer* uniformBuffer, void* data, unsigned 
 {
     uniformBuffer->data = data;
     uniformBuffer->size = size;
+    unsigned int bindingPoint = GetNextUniformBufferBindingPoint();
+    uniformBuffer->bindingPoint = bindingPoint;
     GLCall(glGenBuffers(1, &uniformBuffer->bufferId));
     GLCall(glBindBuffer(GL_UNIFORM_BUFFER, uniformBuffer->bufferId));
     GLCall(glBufferData(GL_UNIFORM_BUFFER, size, data, usageHint));
+    GLCall(glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, uniformBuffer->bufferId));
 }
 
 void UniformBufferUpdate(UniformBuffer* uniformBuffer)
 {
+    // TODO: investigate glMapBuffer vs glBufferSubData performance
+
     GLCall(glBindBuffer(GL_UNIFORM_BUFFER, uniformBuffer->bufferId));
     GLCall(void* mappedBuffer = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY));
     memcpy(mappedBuffer, uniformBuffer->data, uniformBuffer->size);
@@ -108,9 +120,11 @@ void UniformBufferBind(UniformBuffer* uniformBuffer)
     GLCall(glBindBuffer(GL_UNIFORM_BUFFER, uniformBuffer->bufferId));
 }
 
-void UniformBufferBindPoint(UniformBuffer* uniformBuffer, unsigned int index)
+// Explicitly sets the buffer binding point
+// Be careful to avoid binding point conflicts
+void UniformBufferBindPoint(UniformBuffer* uniformBuffer, unsigned int bindingPoint)
 {
-    GLCall(glBindBufferBase(GL_UNIFORM_BUFFER, index, uniformBuffer->bufferId));
+    GLCall(glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, uniformBuffer->bufferId));
 }
 
 void UniformBufferUnbind()
@@ -128,5 +142,5 @@ void UniformBufferDelete(UniformBuffer* uniformBuffer)
 void VertexAttribPointerFloats(unsigned int index, int size)
 {
     GLCall(glEnableVertexAttribArray(index));
-    GLCall(glVertexAttribPointer(index, size, GL_FLOAT, GL_FALSE, 0, 0));
+    GLCall(glVertexAttribPointer(index, size, GL_FLOAT, GL_FALSE, size * sizeof(float), 0));
 }

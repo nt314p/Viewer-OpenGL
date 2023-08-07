@@ -35,13 +35,33 @@ static void ShaderLoad(const char* filePath, char* buffer)
 
 int ShaderGetUniformId(unsigned int shaderId, const char* name)
 {
-    return glGetUniformLocation(shaderId, name);
+    // uniform id or index
+    GLCall(int uniformId = glGetUniformLocation(shaderId, name));
+    return uniformId;
 }
 
+// Fetches the uniform block index (specific to a shader program)
 int ShaderGetUniformBlockIndex(unsigned int shaderId, const char* name)
 {
-    return glGetUniformBlockIndex(shaderId, name);
+    GLCall(int blockIndex = glGetUniformBlockIndex(shaderId, name));
+    return blockIndex;
 }
+
+// Binds a uniform binding point with a uniform index within the specified shader program
+void ShaderUniformBlockBinding(unsigned int shaderId, unsigned int blockIndex,
+    unsigned int bindingPoint)
+{
+    GLCall(glUniformBlockBinding(shaderId, blockIndex, bindingPoint));
+}
+
+// binds a uniform buffer to a uniform block located by name in the specified shader program
+void ShaderBindUniformBuffer(unsigned int shaderId, const char* name,
+    UniformBuffer* uniformBuffer)
+{
+    GLCall(int blockIndex = glGetUniformBlockIndex(shaderId, name));
+    GLCall(glUniformBlockBinding(shaderId, blockIndex, uniformBuffer->bindingPoint));
+}
+
 
 unsigned int ShaderCompile(unsigned int type, const char* filePath)
 {
@@ -94,4 +114,9 @@ unsigned int ShaderCreate(const char* vertexShaderFilePath, const char* fragment
     unsigned int fragmentShaderId = ShaderCompile(GL_FRAGMENT_SHADER, fragmentShaderFilePath);
 
     return ShaderCreateFromIds(vertexShaderId, fragmentShaderId);
+}
+
+void ShaderUse(unsigned int shaderId)
+{
+    GLCall(glUseProgram(shaderId));
 }

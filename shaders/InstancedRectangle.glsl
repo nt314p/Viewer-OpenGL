@@ -19,7 +19,7 @@ layout (std140) uniform Rectangles
 layout (std140) uniform Matrices
 {
     mat4 vpMatrix;
-}
+};
 
 out vec3 vColor;
 

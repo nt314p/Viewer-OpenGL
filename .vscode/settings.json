@@ -4,6 +4,7 @@
         "model_parser.h": "c",
         "cglm.h": "c",
         "renderer.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "shader.h": "c"
     }
 }
