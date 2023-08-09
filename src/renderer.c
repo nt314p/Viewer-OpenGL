@@ -120,13 +120,6 @@ void UniformBufferBind(UniformBuffer* uniformBuffer)
     GLCall(glBindBuffer(GL_UNIFORM_BUFFER, uniformBuffer->bufferId));
 }
 
-// Explicitly sets the buffer binding point
-// Be careful to avoid binding point conflicts
-void UniformBufferBindPoint(UniformBuffer* uniformBuffer, unsigned int bindingPoint)
-{
-    GLCall(glBindBufferBase(GL_UNIFORM_BUFFER, bindingPoint, uniformBuffer->bufferId));
-}
-
 void UniformBufferUnbind()
 {
     GLCall(glBindBuffer(GL_UNIFORM_BUFFER, 0));

@@ -1,7 +1,7 @@
 #include "camera.h"
 #include <string.h>
 
-static vec3 position = { 0.0f, 0.0f, 0.0f };
+static vec3 position = { 0.0f, 0.0f, -1.0f };
 static vec3 right = { 1.0f, 0.0f, 0.0f };
 static vec3 up = { 0.0f, 1.0f, 0.0f };
 static vec3 forward = { 0.0f, 0.0f, 1.0f };
@@ -9,7 +9,7 @@ static vec3 forward = { 0.0f, 0.0f, 1.0f };
 static float fov = 45.0f;
 static float aspect = 16.0f / 9.0f;
 static float near = 0.1f;
-static float far = 100.0f;
+static float far = 10.0f;
 static float orthoSize = 10.0f;
 static mat4 projection;
 

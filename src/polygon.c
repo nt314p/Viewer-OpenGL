@@ -19,7 +19,6 @@ void InitializeUnitCircle()
     // Add two vertices. One for the center and the other for the final vertex
     // that must overlap with the first vertex on the circle
 
-    memset(UnitCircleVertices, 0, sizeof(UnitCircleVertices));
     for (int i = 0; i <= CircleVertexCount; i++)
     {
         int index = i + 1;
@@ -39,7 +38,7 @@ void InitializeUnitCircle()
 }
 
 // Initializes a unit square in the first quadrant
-// with side length one and a corner at the origin
+// with side length one and centered at the origin
 void InitializeUnitSquare()
 {
     glm_vec2_copy((vec2){0.5f, 0.5f}, UnitSquareVertices[0]);
@@ -65,7 +64,7 @@ void PolygonInitialize()
     IsInitialized = true;
 }
 
-void PolygonCircle(Polygon *polygon, float radius)
+void PolygonCircle(Polygon_ *polygon, float radius)
 {
     polygon->vertexCount = CircleVertexCount;
     polygon->vertices = UnitCircleVertices;
@@ -87,14 +86,14 @@ void PolygonBindUnitSquare()
     VertexArrayBind(UnitSquareVertexArrayId);
 }
 
-void PolygonDraw(Polygon *polygon)
+void PolygonDraw(Polygon_ *polygon)
 {
     VertexBufferBind(&polygon->vertexBuffer);
     GLCall(glDrawArrays(GL_TRIANGLE_FAN, 0, (polygon->vertexCount + 2)));
     // bugged if not drawing a circle because there shouldn't be +2
 }
 
-void PolygonFree(Polygon *polygon)
+void PolygonFree(Polygon_ *polygon)
 {
     free(polygon->vertices); // yeah this is completely bugged if you free a circle
 }
