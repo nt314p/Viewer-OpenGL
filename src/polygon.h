@@ -4,13 +4,13 @@
 #include "renderer.h"
 #include <string.h>
 
-typedef struct Polygon_
+typedef struct Polygon
 {
     VertexBuffer vertexBuffer;
     mat4 transform;
     vec2* vertices; // this should be heap allocated only
     int vertexCount;
-} Polygon_;
+} Polygon;
 
 typedef struct Circle
 {
@@ -32,12 +32,13 @@ typedef struct Rect
 
 typedef struct Line
 {
-    vec3 color;
+    vec2 a;
+    vec2 b;
 } Line;
 
 void PolygonInitialize();
 void PolygonBindUnitCircle();
 void PolygonBindUnitSquare();
-void PolygonCircle(Polygon_* polygon, float radius);
-void PolygonDraw(Polygon_* polygon);
-void PolygonFree(Polygon_* polygon);
+void PolygonCircle(Polygon* polygon, float radius);
+void PolygonDraw(Polygon* polygon);
+void PolygonFree(Polygon* polygon);

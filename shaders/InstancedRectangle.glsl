@@ -13,7 +13,7 @@ struct Rectangle
 
 layout (std140) uniform Rectangles
 {
-    Rectangle rectangles[200];
+    Rectangle rectangles[2048];
 };
 
 layout (std140) uniform Matrices
@@ -26,7 +26,7 @@ out vec3 vColor;
 void main()
 {
     Rectangle r = rectangles[gl_InstanceID];
-    vec3 pos = vec2(position.x * r.width, position.y * r.height) + vec3(r.position, 0.0);
+    vec3 pos = vec3(vec2(position.x * r.width, position.y * r.height) + r.position, 0.0);
     gl_Position = vpMatrix * vec4(pos, 1.0);
     vColor = r.color;
 };

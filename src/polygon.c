@@ -1,7 +1,7 @@
 #include "polygon.h"
 
 #define CircleVertexCount 50
-static vec2 UnitCircleVertices[CircleVertexCount + 2]; // change to vec2?
+static vec2 UnitCircleVertices[CircleVertexCount + 2];
 static VertexBuffer UnitCircleVertexBuffer;
 static unsigned int UnitCircleVertexArrayId;
 
@@ -41,10 +41,10 @@ void InitializeUnitCircle()
 // with side length one and centered at the origin
 void InitializeUnitSquare()
 {
-    glm_vec2_copy((vec2){0.5f, 0.5f}, UnitSquareVertices[0]);
-    glm_vec2_copy((vec2){-0.5f, 0.5f}, UnitSquareVertices[1]);
-    glm_vec2_copy((vec2){-0.5f, -0.5f}, UnitSquareVertices[2]);
-    glm_vec2_copy((vec2){0.5f, -0.5f}, UnitSquareVertices[3]);
+    glm_vec2_copy((vec2) { 0.5f, 0.5f }, UnitSquareVertices[0]);
+    glm_vec2_copy((vec2) { -0.5f, 0.5f }, UnitSquareVertices[1]);
+    glm_vec2_copy((vec2) { -0.5f, -0.5f }, UnitSquareVertices[2]);
+    glm_vec2_copy((vec2) { 0.5f, -0.5f }, UnitSquareVertices[3]);
 
     VertexArrayInitialize(&UnitSquareVertexArrayId);
     VertexArrayBind(UnitSquareVertexArrayId);
@@ -64,7 +64,7 @@ void PolygonInitialize()
     IsInitialized = true;
 }
 
-void PolygonCircle(Polygon_ *polygon, float radius)
+void PolygonCircle(Polygon* polygon, float radius)
 {
     polygon->vertexCount = CircleVertexCount;
     polygon->vertices = UnitCircleVertices;
@@ -86,14 +86,14 @@ void PolygonBindUnitSquare()
     VertexArrayBind(UnitSquareVertexArrayId);
 }
 
-void PolygonDraw(Polygon_ *polygon)
+void PolygonDraw(Polygon* polygon)
 {
     VertexBufferBind(&polygon->vertexBuffer);
     GLCall(glDrawArrays(GL_TRIANGLE_FAN, 0, (polygon->vertexCount + 2)));
     // bugged if not drawing a circle because there shouldn't be +2
 }
 
-void PolygonFree(Polygon_ *polygon)
+void PolygonFree(Polygon* polygon)
 {
     free(polygon->vertices); // yeah this is completely bugged if you free a circle
 }

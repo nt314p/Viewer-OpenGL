@@ -9,8 +9,13 @@
 #include <stdio.h>
 #include <malloc.h>
 
-const int WIDTH = 2160;
-const int HEIGHT = 1440;
+const char* BasicFragShaderPath = "shaders/BasicFrag.glsl";
+const char* RectVertShaderPath = "shaders/InstancedRectangle.glsl";
+const char* CircleVertShaderPath = "shaders/InstancedCircle.glsl";
+const char* LineVertShaderPath = "shaders/InstancedLine.glsl";
+
+const int WIDTH = 1280;
+const int HEIGHT = 720;
 
 static void ProcessInput(GLFWwindow* window);
 static void MouseCallback(GLFWwindow* window, double x, double y);
@@ -22,13 +27,10 @@ static vec2 mouseCoords;
 static vec2 scrollDelta;
 static vec2 mouseDelta;
 
-float yaw;
-float pitch;
+static float yaw;
+static float pitch;
 
-// Flickering
-// Doesn't work:
-// Enable/disable vsync
-// Enable/disable fullscreen
+float zoom = 10.0f;
 
 float RandomRange(float min, float max)
 {
@@ -48,7 +50,7 @@ int main(void)
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    GLFWmonitor* monitor = NULL;//glfwGetPrimaryMonitor();
 
     window = glfwCreateWindow(WIDTH, HEIGHT, "Viewer", monitor, NULL);
     if (!window)
@@ -69,8 +71,9 @@ int main(void)
 
     printf("%s\n", glGetString(GL_VERSION));
 
-    unsigned int rectShaderId = ShaderCreate("shaders/InstancedRectangle.glsl", "shaders/BasicFrag.glsl");
-    unsigned int circleShaderId = ShaderCreate("shaders/InstancedCircle.glsl", "shaders/BasicFrag.glsl");
+    unsigned int rectShaderId = ShaderCreate(RectVertShaderPath, BasicFragShaderPath);
+    unsigned int circleShaderId = ShaderCreate(CircleVertShaderPath, BasicFragShaderPath);
+    unsigned int lineShaderId = ShaderCreate(LineVertShaderPath, BasicFragShaderPath);
 
     PolygonInitialize();
     PolygonBindUnitSquare();
@@ -80,6 +83,7 @@ int main(void)
     UniformBufferInitialize(&vpMatrixUB, vpMatrix, sizeof(mat4), GL_DYNAMIC_DRAW);
     ShaderBindUniformBuffer(rectShaderId, "Matrices", &vpMatrixUB);
     ShaderBindUniformBuffer(circleShaderId, "Matrices", &vpMatrixUB);
+    ShaderBindUniformBuffer(lineShaderId, "Matrices", &vpMatrixUB);
 
     int maxUniformBlockSize;
     GLCall(glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &maxUniformBlockSize));
@@ -87,15 +91,8 @@ int main(void)
 
     //GLCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
     GLCall(glClearColor(0.1f, 0.15f, 0.2f, 1.0f));
-    //GLCall(glDisable(GL_DEPTH));
 
-    // GLCall(glEnable(GL_LINE_SMOOTH));
-    // GLCall(glHint(GL_LINE_SMOOTH_HINT, GL_NICEST));
-    // GLCall(glEnable(GL_BLEND));
-    // GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
-
-
-    const int numCircles = 200;
+    const int numCircles = 2048;
 
     Circle* circlesBuffer = malloc(sizeof(Circle) * numCircles);
     for (int i = 0; i < numCircles; i++)
@@ -113,31 +110,58 @@ int main(void)
     UniformBufferInitialize(&circles, circlesBuffer, sizeof(Circle) * numCircles, GL_STATIC_DRAW);
     ShaderBindUniformBuffer(circleShaderId, "Circles", &circles);
 
-    const int numRects = 200;
+    const int numRects = 2048;
     Rect* rectsBuffer = malloc(sizeof(Rect) * numRects);
     memset(rectsBuffer, 0, sizeof(Rect) * numRects);
 
     for (int i = 0; i < numRects; i++)
     {
-        rectsBuffer[i].width = 1.0f;//RandomRange(0.1f, 2);
-        rectsBuffer[i].height = 40.0f;//RandomRange(0.1f, 2);
-        rectsBuffer[i].position[0] = i;//RandomRange(-50, 50);
-        rectsBuffer[i].position[1] = 0.0f;//RandomRange(-50, 50);
+        rectsBuffer[i].width = RandomRange(0.1f, 2);
+        rectsBuffer[i].height = RandomRange(0.1f, 2);
+        rectsBuffer[i].position[0] = RandomRange(-50, 50);
+        rectsBuffer[i].position[1] = RandomRange(-50, 50);
 
-        rectsBuffer[i].color[0] = 1.0f;//RandomRange(0, 1);
-        rectsBuffer[i].color[1] = 1.0f;//RandomRange(0, 1);
-        rectsBuffer[i].color[2] = 1.0f;//RandomRange(0, 1);
+        rectsBuffer[i].color[0] = RandomRange(0, 1);
+        rectsBuffer[i].color[1] = RandomRange(0, 1);
+        rectsBuffer[i].color[2] = RandomRange(0, 1);
     }
 
     UniformBuffer rects;
-    // TODO: investigate why using GL_DYNAMIC_DRAW causes flickering
     UniformBufferInitialize(&rects, rectsBuffer, sizeof(Rect) * numRects, GL_STATIC_DRAW);
     ShaderBindUniformBuffer(rectShaderId, "Rectangles", &rects);
 
+    const int numLines = 2048;
+
+    vec4* lineColors = malloc(sizeof(vec4) * numLines);
+    Line* lines = malloc(sizeof(Line) * numLines);
+
+    for (int i = 0; i < numLines; i++)
+    {
+        lines[i].a[0] = RandomRange(-50, 50);
+        lines[i].a[1] = RandomRange(-50, 50);
+        lines[i].b[0] = RandomRange(-50, 50);
+        lines[i].b[1] = RandomRange(-50, 50);
+
+        lineColors[i][0] = RandomRange(0, 1);
+        lineColors[i][1] = RandomRange(0, 1);
+        lineColors[i][2] = RandomRange(0, 1);
+    }
+
+    UniformBuffer lineColorsUB;
+    UniformBufferInitialize(&lineColorsUB, lineColors, sizeof(vec4) * numLines, GL_STATIC_DRAW);
+    ShaderBindUniformBuffer(lineShaderId, "LineColors", &lineColorsUB);
+
+    unsigned int linesVAO;
+    VertexArrayInitialize(&linesVAO);
+    VertexArrayBind(linesVAO);
+
+    VertexBuffer lineVertices;
+    VertexBufferInitialize(&lineVertices, lines, sizeof(Line) * numLines);
+    VertexBufferBind(&lineVertices);
+    VertexAttribPointerFloats(0, 2);
+
     // CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
     CameraUseOrthographic(((float)WIDTH) / HEIGHT, 10.0f);
-
-    float zoom = 10.0f;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -145,7 +169,7 @@ int main(void)
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        printf("%f\n", deltaTime);
+        //printf("%f\n", deltaTime);
 
         ProcessInput(window);
 
@@ -162,13 +186,17 @@ int main(void)
 
         UniformBufferUpdate(&vpMatrixUB);
 
-        ShaderUse(rectShaderId);
-        PolygonBindUnitSquare();
-        //GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, numRects));
+        // ShaderUse(circleShaderId);
+        // PolygonBindUnitCircle();
+        // GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 52, numCircles));
 
-        ShaderUse(circleShaderId);
-        PolygonBindUnitCircle();
-        GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 52, numCircles));
+        // ShaderUse(rectShaderId);
+        // PolygonBindUnitSquare();
+        // GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, numRects));
+
+        ShaderUse(lineShaderId);
+        VertexArrayBind(linesVAO);
+        GLCall(glDrawArrays(GL_LINES, 0, 2 * numLines));
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -188,6 +216,8 @@ static void ScrollCallback(GLFWwindow* window, double xOffset, double yOffset)
 
 void MouseCallback(GLFWwindow* window, double x, double y)
 {
+    const float sensitivity = 6.0f;
+
     static float prevX, prevY;
     static bool firstCall = true;
 
@@ -209,9 +239,8 @@ void MouseCallback(GLFWwindow* window, double x, double y)
     mouseDelta[0] = dx;
     mouseDelta[1] = dy;
 
-    yaw -= dx * deltaTime * 6;
-    pitch += dy * deltaTime * 6;
-    // printf("dx: %f; dy: %f\n", dx, dy);
+    yaw -= dx * deltaTime * sensitivity;
+    pitch += dy * deltaTime * sensitivity;
 }
 
 int KeyPressed(GLFWwindow* window, int key);
@@ -223,7 +252,7 @@ inline int KeyPressed(GLFWwindow* window, int key)
 
 void ProcessInput(GLFWwindow* window)
 {
-    float speed = 10.0f;
+    float speed = zoom / 2.0f;
     vec3 movement = { 0.0f };
 
     if (KeyPressed(window, GLFW_KEY_ESCAPE))

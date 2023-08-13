@@ -135,5 +135,5 @@ void UniformBufferDelete(UniformBuffer* uniformBuffer)
 void VertexAttribPointerFloats(unsigned int index, int size)
 {
     GLCall(glEnableVertexAttribArray(index));
-    GLCall(glVertexAttribPointer(index, size, GL_FLOAT, GL_FALSE, size * sizeof(float), 0));
+    GLCall(glVertexAttribPointer(index, size, GL_FLOAT, GL_FALSE, 0, 0));
 }
