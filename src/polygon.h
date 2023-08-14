@@ -2,7 +2,6 @@
 
 #include <cglm\cglm.h>
 #include "renderer.h"
-#include <string.h>
 
 typedef struct Polygon
 {

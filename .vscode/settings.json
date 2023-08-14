@@ -5,6 +5,13 @@
         "cglm.h": "c",
         "renderer.h": "c",
         "string.h": "c",
-        "shader.h": "c"
-    }
+        "shader.h": "c",
+        "glew.h": "c",
+        "stdio.h": "c"
+    },
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.autopep8"
+    },
+    "python.formatting.provider": "none",
+    "python.analysis.typeCheckingMode": "basic"
 }

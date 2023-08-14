@@ -1,9 +1,10 @@
-#include "model_parser.h"
-#include "renderer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <malloc.h>
 #include <cglm\cglm.h>
+#include "model_parser.h"
+#include "renderer.h"
+#include "debug.h"
 
 // Returns the length of the file
 int ReadModel(const char* filePath, char* buffer)

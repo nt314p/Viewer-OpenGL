@@ -1,4 +1,5 @@
 #include "polygon.h"
+#include "debug.h"
 
 #define CircleVertexCount 50
 static vec2 UnitCircleVertices[CircleVertexCount + 2];

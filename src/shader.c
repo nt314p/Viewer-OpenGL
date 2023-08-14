@@ -1,6 +1,9 @@
-#include "shader.h"
+#define GLEW_STATIC
+#include <GL\glew.h>
 #include <stdio.h>
 #include <malloc.h>
+#include "shader.h"
+#include "debug.h"
 
 static long GetFileLength(const char* filePath)
 {
@@ -54,7 +57,7 @@ void ShaderUniformBlockBinding(unsigned int shaderId, unsigned int blockIndex,
     GLCall(glUniformBlockBinding(shaderId, blockIndex, bindingPoint));
 }
 
-// binds a uniform buffer to a uniform block located by name in the specified shader program
+// Binds a uniform buffer to a uniform block located by name in the specified shader program
 void ShaderBindUniformBuffer(unsigned int shaderId, const char* name,
     UniformBuffer* uniformBuffer)
 {

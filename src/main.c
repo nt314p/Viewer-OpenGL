@@ -1,13 +1,16 @@
-#include "renderer.h"
-#include "shader.h"
-#include "camera.h"
-#include "model_parser.h"
-#include "polygon.h"
 #include <cglm\cglm.h>
+#define GLEW_STATIC
 #include <GL\glew.h>
 #include <GLFW\glfw3.h>
 #include <stdio.h>
 #include <malloc.h>
+#include <string.h>
+#include "debug.h"
+#include "timer.h"
+#include "renderer.h"
+#include "shader.h"
+#include "camera.h"
+#include "polygon.h"
 
 const char* BasicFragShaderPath = "shaders/BasicFrag.glsl";
 const char* RectVertShaderPath = "shaders/InstancedRectangle.glsl";
@@ -107,7 +110,7 @@ int main(void)
     }
 
     UniformBuffer circles;
-    UniformBufferInitialize(&circles, circlesBuffer, sizeof(Circle) * numCircles, GL_STATIC_DRAW);
+    UniformBufferInitialize(&circles, circlesBuffer, sizeof(Circle) * numCircles, GL_DYNAMIC_DRAW);
     ShaderBindUniformBuffer(circleShaderId, "Circles", &circles);
 
     const int numRects = 2048;
@@ -130,7 +133,7 @@ int main(void)
     UniformBufferInitialize(&rects, rectsBuffer, sizeof(Rect) * numRects, GL_STATIC_DRAW);
     ShaderBindUniformBuffer(rectShaderId, "Rectangles", &rects);
 
-    const int numLines = 2048;
+    const int numLines = 4096;
 
     vec4* lineColors = malloc(sizeof(vec4) * numLines);
     Line* lines = malloc(sizeof(Line) * numLines);
@@ -169,7 +172,7 @@ int main(void)
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        //printf("%f\n", deltaTime);
+        // printf("%f\n", deltaTime);
 
         ProcessInput(window);
 
@@ -186,6 +189,13 @@ int main(void)
 
         UniformBufferUpdate(&vpMatrixUB);
 
+        for (int i = 0; i < numCircles; i++)
+        {
+            glm_vec2_rotate(circlesBuffer[i].position, deltaTime * 0.1f, circlesBuffer[i].position);
+        }
+
+
+        // UniformBufferUpdate(&circles);
         // ShaderUse(circleShaderId);
         // PolygonBindUnitCircle();
         // GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 52, numCircles));
@@ -194,9 +204,15 @@ int main(void)
         // PolygonBindUnitSquare();
         // GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, numRects));
 
+
+        TimerStart();
+
         ShaderUse(lineShaderId);
         VertexArrayBind(linesVAO);
         GLCall(glDrawArrays(GL_LINES, 0, 2 * numLines));
+
+        TimerStop();
+        printf("%f ms\n", TimerGetNanosecondsElapsed() / 1000000.0f);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

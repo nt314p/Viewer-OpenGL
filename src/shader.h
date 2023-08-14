@@ -1,8 +1,6 @@
 #pragma once
 
-#define GLEW_STATIC
 #include "renderer.h"
-#include <GL\glew.h>
 
 void ShaderUse(unsigned int shaderId);
 int ShaderGetUniformId(unsigned int shaderId, const char* name);
