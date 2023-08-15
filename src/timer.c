@@ -4,7 +4,7 @@
 
 #define UninitializedTimerId 999999 // Cross fingers no conflicts
 
-unsigned int timerQuery = UninitializedTimerId;
+static unsigned int timerQuery = UninitializedTimerId;
 
 void TimerStart()
 {

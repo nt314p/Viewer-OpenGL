@@ -1,15 +1,6 @@
 #pragma once
 
 #include <cglm\cglm.h>
-#include "renderer.h"
-
-typedef struct Polygon
-{
-    VertexBuffer vertexBuffer;
-    mat4 transform;
-    vec2* vertices; // this should be heap allocated only
-    int vertexCount;
-} Polygon;
 
 typedef struct Circle
 {
@@ -29,15 +20,17 @@ typedef struct Rect
     float height;
 } Rect;
 
-typedef struct Line
+typedef struct LineInternal
 {
     vec2 a;
     vec2 b;
-} Line;
+} LineInternal;
 
 void PolygonInitialize();
 void PolygonBindUnitCircle();
 void PolygonBindUnitSquare();
-void PolygonCircle(Polygon* polygon, float radius);
-void PolygonDraw(Polygon* polygon);
-void PolygonFree(Polygon* polygon);
+
+Circle* PolygonCircle(vec2 position, float radius, vec3 color);
+Rect* PolygonRect(vec2 position, float width, float height, vec3 color); 
+void PolygonRenderPolygons();
+void PolygonUpdateViewPerspectiveMatrix(mat4 vpMatrix);

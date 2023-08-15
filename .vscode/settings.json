@@ -7,7 +7,9 @@
         "string.h": "c",
         "shader.h": "c",
         "glew.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "polygon.h": "c",
+        "debug.h": "c"
     },
     "[python]": {
         "editor.defaultFormatter": "ms-python.autopep8"

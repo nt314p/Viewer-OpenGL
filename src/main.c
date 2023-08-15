@@ -12,13 +12,8 @@
 #include "camera.h"
 #include "polygon.h"
 
-const char* BasicFragShaderPath = "shaders/BasicFrag.glsl";
-const char* RectVertShaderPath = "shaders/InstancedRectangle.glsl";
-const char* CircleVertShaderPath = "shaders/InstancedCircle.glsl";
-const char* LineVertShaderPath = "shaders/InstancedLine.glsl";
-
-const int WIDTH = 1280;
-const int HEIGHT = 720;
+static const int WIDTH = 1280;
+static const int HEIGHT = 720;
 
 static void ProcessInput(GLFWwindow* window);
 static void MouseCallback(GLFWwindow* window, double x, double y);
@@ -33,7 +28,7 @@ static vec2 mouseDelta;
 static float yaw;
 static float pitch;
 
-float zoom = 10.0f;
+static float zoom = 10.0f;
 
 float RandomRange(float min, float max)
 {
@@ -74,19 +69,7 @@ int main(void)
 
     printf("%s\n", glGetString(GL_VERSION));
 
-    unsigned int rectShaderId = ShaderCreate(RectVertShaderPath, BasicFragShaderPath);
-    unsigned int circleShaderId = ShaderCreate(CircleVertShaderPath, BasicFragShaderPath);
-    unsigned int lineShaderId = ShaderCreate(LineVertShaderPath, BasicFragShaderPath);
-
     PolygonInitialize();
-    PolygonBindUnitSquare();
-
-    mat4 vpMatrix;
-    UniformBuffer vpMatrixUB;
-    UniformBufferInitialize(&vpMatrixUB, vpMatrix, sizeof(mat4), GL_DYNAMIC_DRAW);
-    ShaderBindUniformBuffer(rectShaderId, "Matrices", &vpMatrixUB);
-    ShaderBindUniformBuffer(circleShaderId, "Matrices", &vpMatrixUB);
-    ShaderBindUniformBuffer(lineShaderId, "Matrices", &vpMatrixUB);
 
     int maxUniformBlockSize;
     GLCall(glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &maxUniformBlockSize));
@@ -111,7 +94,7 @@ int main(void)
 
     UniformBuffer circles;
     UniformBufferInitialize(&circles, circlesBuffer, sizeof(Circle) * numCircles, GL_DYNAMIC_DRAW);
-    ShaderBindUniformBuffer(circleShaderId, "Circles", &circles);
+    //ShaderBindUniformBuffer(circleShaderId, "Circles", &circles);
 
     const int numRects = 2048;
     Rect* rectsBuffer = malloc(sizeof(Rect) * numRects);
@@ -131,12 +114,12 @@ int main(void)
 
     UniformBuffer rects;
     UniformBufferInitialize(&rects, rectsBuffer, sizeof(Rect) * numRects, GL_STATIC_DRAW);
-    ShaderBindUniformBuffer(rectShaderId, "Rectangles", &rects);
+    //ShaderBindUniformBuffer(rectShaderId, "Rectangles", &rects);
 
     const int numLines = 4096;
 
     vec4* lineColors = malloc(sizeof(vec4) * numLines);
-    Line* lines = malloc(sizeof(Line) * numLines);
+    LineInternal* lines = malloc(sizeof(LineInternal) * numLines);
 
     for (int i = 0; i < numLines; i++)
     {
@@ -152,19 +135,21 @@ int main(void)
 
     UniformBuffer lineColorsUB;
     UniformBufferInitialize(&lineColorsUB, lineColors, sizeof(vec4) * numLines, GL_STATIC_DRAW);
-    ShaderBindUniformBuffer(lineShaderId, "LineColors", &lineColorsUB);
+    //ShaderBindUniformBuffer(lineShaderId, "LineColors", &lineColorsUB);
 
     unsigned int linesVAO;
     VertexArrayInitialize(&linesVAO);
     VertexArrayBind(linesVAO);
 
     VertexBuffer lineVertices;
-    VertexBufferInitialize(&lineVertices, lines, sizeof(Line) * numLines);
+    VertexBufferInitialize(&lineVertices, lines, sizeof(LineInternal) * numLines);
     VertexBufferBind(&lineVertices);
     VertexAttribPointerFloats(0, 2);
 
     // CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
     CameraUseOrthographic(((float)WIDTH) / HEIGHT, 10.0f);
+
+    Rect* rect1 = PolygonRect((vec2) { 10, 20 }, 20, 40, (vec3) { 0.7f, 0.1f, 0.8f });
 
     while (!glfwWindowShouldClose(window))
     {
@@ -183,11 +168,11 @@ int main(void)
         CameraZoom(zoom);
         scrollDelta[1] = 0;
 
-        CameraViewPerspectiveMatrix(vpMatrix);
+        mat4 m;
+        CameraViewPerspectiveMatrix(m);
+        PolygonUpdateViewPerspectiveMatrix(m);
 
         GLCall(glClear(GL_COLOR_BUFFER_BIT));
-
-        UniformBufferUpdate(&vpMatrixUB);
 
         for (int i = 0; i < numCircles; i++)
         {
@@ -195,24 +180,16 @@ int main(void)
         }
 
 
-        // UniformBufferUpdate(&circles);
-        // ShaderUse(circleShaderId);
-        // PolygonBindUnitCircle();
-        // GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 52, numCircles));
+        PolygonRenderPolygons();
 
-        // ShaderUse(rectShaderId);
-        // PolygonBindUnitSquare();
-        // GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, numRects));
+        // TimerStart();
 
+        // ShaderUse(lineShaderId);
+        // VertexArrayBind(linesVAO);
+        // GLCall(glDrawArrays(GL_LINES, 0, 2 * numLines));
 
-        TimerStart();
-
-        ShaderUse(lineShaderId);
-        VertexArrayBind(linesVAO);
-        GLCall(glDrawArrays(GL_LINES, 0, 2 * numLines));
-
-        TimerStop();
-        printf("%f ms\n", TimerGetNanosecondsElapsed() / 1000000.0f);
+        // TimerStop();
+        // printf("%f ms\n", TimerGetNanosecondsElapsed() / 1000000.0f);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

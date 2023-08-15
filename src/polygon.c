@@ -1,7 +1,16 @@
+#include <string.h>
 #include "polygon.h"
+#include "shader.h"
+#include "renderer.h"
 #include "debug.h"
 
 #define CircleVertexCount 50
+
+const char* BasicFragShaderPath = "shaders/BasicFrag.frag";
+const char* RectVertShaderPath = "shaders/InstancedRectangle.vert";
+const char* CircleVertShaderPath = "shaders/InstancedCircle.vert";
+const char* LineVertShaderPath = "shaders/InstancedLine.vert";
+
 static vec2 UnitCircleVertices[CircleVertexCount + 2];
 static VertexBuffer UnitCircleVertexBuffer;
 static unsigned int UnitCircleVertexArrayId;
@@ -10,7 +19,27 @@ static vec2 UnitSquareVertices[4];
 static VertexBuffer UnitSquareVertexBuffer;
 static unsigned int UnitSquareVertexArrayId;
 
-bool IsInitialized = false;
+static bool IsInitialized = false;
+
+static const int MaxCircleCount = 2048;
+static const int MaxRectCount = 2048;
+// static const int MaxLineCount = 4096;
+
+static Circle* circles;
+static Rect* rects;
+
+static UniformBuffer circlesBuffer;
+static UniformBuffer rectsBuffer;
+
+static unsigned int numCircles;
+static unsigned int numRects;
+
+static mat4 vpMatrix;
+static UniformBuffer vpMatrixUB;
+
+static unsigned int circleShaderId;
+static unsigned int lineShaderId;
+static unsigned int rectShaderId;
 
 // Specialized triangulation for circles?
 // https://www.humus.name/index.php?page=News&ID=228
@@ -62,17 +91,32 @@ void PolygonInitialize()
 {
     InitializeUnitCircle();
     InitializeUnitSquare();
+
+    int circlesSize = sizeof(Circle) * MaxCircleCount;
+    int rectsSize = sizeof(Rect) * MaxRectCount;
+
+    circles = malloc(circlesSize);
+    rects = malloc(rectsSize);
+
+    memset(circles, 0, circlesSize);
+    memset(rects, 0, rectsSize);
+
+    UniformBufferInitialize(&circlesBuffer, circles, circlesSize, GL_DYNAMIC_DRAW);
+    UniformBufferInitialize(&rectsBuffer, rects, rectsSize, GL_DYNAMIC_DRAW);
+
+    rectShaderId = ShaderCreate(RectVertShaderPath, BasicFragShaderPath);
+    circleShaderId = ShaderCreate(CircleVertShaderPath, BasicFragShaderPath);
+    lineShaderId = ShaderCreate(LineVertShaderPath, BasicFragShaderPath);
+
+    UniformBufferInitialize(&vpMatrixUB, vpMatrix, sizeof(mat4), GL_DYNAMIC_DRAW);
+    ShaderBindUniformBuffer(rectShaderId, "Matrices", &vpMatrixUB);
+    ShaderBindUniformBuffer(circleShaderId, "Matrices", &vpMatrixUB);
+    ShaderBindUniformBuffer(lineShaderId, "Matrices", &vpMatrixUB);
+
+    ShaderBindUniformBuffer(circleShaderId, "Circles", &circlesBuffer);
+    ShaderBindUniformBuffer(rectShaderId, "Rectangles", &rectsBuffer);
+
     IsInitialized = true;
-}
-
-void PolygonCircle(Polygon* polygon, float radius)
-{
-    polygon->vertexCount = CircleVertexCount;
-    polygon->vertices = UnitCircleVertices;
-    polygon->vertexBuffer = UnitCircleVertexBuffer;
-
-    glm_mat4_identity(polygon->transform);
-    glm_mat4_scale(polygon->transform, radius);
 }
 
 // Binds the unit circle vertex buffer
@@ -87,14 +131,43 @@ void PolygonBindUnitSquare()
     VertexArrayBind(UnitSquareVertexArrayId);
 }
 
-void PolygonDraw(Polygon* polygon)
+Circle* PolygonCircle(vec2 position, float radius, vec3 color)
 {
-    VertexBufferBind(&polygon->vertexBuffer);
-    GLCall(glDrawArrays(GL_TRIANGLE_FAN, 0, (polygon->vertexCount + 2)));
-    // bugged if not drawing a circle because there shouldn't be +2
+    Circle* c = circles + numCircles;
+    glm_vec2_copy(position, c->position);
+    c->radius = radius;
+    glm_vec3_copy(color, c->color);
+    numCircles++;
+    return c;
 }
 
-void PolygonFree(Polygon* polygon)
+Rect* PolygonRect(vec2 position, float width, float height, vec3 color)
 {
-    free(polygon->vertices); // yeah this is completely bugged if you free a circle
+    Rect* r = rects + numRects;
+    glm_vec2_copy(position, r->position);
+    r->width = width;
+    r->height = height;
+    glm_vec3_copy(color, r->color);
+    numRects++;
+    return r;
+}
+
+void PolygonRenderPolygons()
+{
+    UniformBufferUpdate(&vpMatrixUB);
+
+    UniformBufferUpdate(&circlesBuffer);
+    ShaderUse(circleShaderId);
+    PolygonBindUnitCircle();
+    GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 52, numCircles));
+
+    UniformBufferUpdate(&rectsBuffer);
+    ShaderUse(rectShaderId);
+    PolygonBindUnitSquare();
+    GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, numRects));
+}
+
+void PolygonUpdateViewPerspectiveMatrix(mat4 m)
+{
+    glm_mat4_copy(m, vpMatrix);
 }
