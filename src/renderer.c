@@ -97,6 +97,15 @@ void UniformBufferUpdate(UniformBuffer* uniformBuffer)
     GLCall(glUnmapBuffer(GL_UNIFORM_BUFFER));
 }
 
+void UniformBufferUpdateRange(UniformBuffer* uniformBuffer, unsigned int offset,
+    unsigned int size)
+{
+    GLCall(glBindBuffer(GL_UNIFORM_BUFFER, uniformBuffer->bufferId));
+    GLCall(void* mappedBuffer = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY));
+    memcpy(mappedBuffer, (char*)(uniformBuffer->data) + offset, size);
+    GLCall(glUnmapBuffer(GL_UNIFORM_BUFFER));
+}
+
 void UniformBufferBind(UniformBuffer* uniformBuffer)
 {
     GLCall(glBindBuffer(GL_UNIFORM_BUFFER, uniformBuffer->bufferId));

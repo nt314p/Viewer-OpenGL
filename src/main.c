@@ -11,22 +11,15 @@
 #include "shader.h"
 #include "camera.h"
 #include "polygon.h"
+#include "input.h"
 
 static const int WIDTH = 1280;
 static const int HEIGHT = 720;
 
 static void ProcessInput(GLFWwindow* window);
-static void MouseCallback(GLFWwindow* window, double x, double y);
-static void ScrollCallback(GLFWwindow* window, double xOffset, double yOffset);
 
 static double deltaTime;
 static double lastFrame;
-static vec2 mouseCoords;
-static vec2 scrollDelta;
-static vec2 mouseDelta;
-
-static float yaw;
-static float pitch;
 
 static float zoom = 10.0f;
 
@@ -61,8 +54,8 @@ int main(void)
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(window, MouseCallback);
-    glfwSetScrollCallback(window, ScrollCallback);
+
+    InputInitialize(window);
 
     if (glewInit() != GLEW_OK)
         printf("Error initializing glew!\n");
@@ -77,44 +70,6 @@ int main(void)
 
     //GLCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
     GLCall(glClearColor(0.1f, 0.15f, 0.2f, 1.0f));
-
-    const int numCircles = 2048;
-
-    Circle* circlesBuffer = malloc(sizeof(Circle) * numCircles);
-    for (int i = 0; i < numCircles; i++)
-    {
-        circlesBuffer[i].radius = RandomRange(0.1f, 2);
-        circlesBuffer[i].position[0] = RandomRange(-50, 50);
-        circlesBuffer[i].position[1] = RandomRange(-50, 50);
-
-        circlesBuffer[i].color[0] = RandomRange(0, 1);
-        circlesBuffer[i].color[1] = RandomRange(0, 1);
-        circlesBuffer[i].color[2] = RandomRange(0, 1);
-    }
-
-    UniformBuffer circles;
-    UniformBufferInitialize(&circles, circlesBuffer, sizeof(Circle) * numCircles, GL_DYNAMIC_DRAW);
-    //ShaderBindUniformBuffer(circleShaderId, "Circles", &circles);
-
-    const int numRects = 2048;
-    Rect* rectsBuffer = malloc(sizeof(Rect) * numRects);
-    memset(rectsBuffer, 0, sizeof(Rect) * numRects);
-
-    for (int i = 0; i < numRects; i++)
-    {
-        rectsBuffer[i].width = RandomRange(0.1f, 2);
-        rectsBuffer[i].height = RandomRange(0.1f, 2);
-        rectsBuffer[i].position[0] = RandomRange(-50, 50);
-        rectsBuffer[i].position[1] = RandomRange(-50, 50);
-
-        rectsBuffer[i].color[0] = RandomRange(0, 1);
-        rectsBuffer[i].color[1] = RandomRange(0, 1);
-        rectsBuffer[i].color[2] = RandomRange(0, 1);
-    }
-
-    UniformBuffer rects;
-    UniformBufferInitialize(&rects, rectsBuffer, sizeof(Rect) * numRects, GL_STATIC_DRAW);
-    //ShaderBindUniformBuffer(rectShaderId, "Rectangles", &rects);
 
     const int numLines = 4096;
 
@@ -149,7 +104,8 @@ int main(void)
     // CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
     CameraUseOrthographic(((float)WIDTH) / HEIGHT, 10.0f);
 
-    Rect* rect1 = PolygonRect((vec2) { 10, 20 }, 20, 40, (vec3) { 0.7f, 0.1f, 0.8f });
+    Rect* rect1 = PolygonRect((vec2) { 40, 20 }, 20, 40, (vec3) { 0.7f, 0.1f, 0.8f });
+    Circle* circle1 = PolygonCircle((vec2) { 0, 0 }, 3, (vec3) { 0, 0.7f, 0 });
 
     while (!glfwWindowShouldClose(window))
     {
@@ -163,10 +119,13 @@ int main(void)
 
         //CameraRotate(yaw, pitch, 0.0f);
 
+        vec2 scrollDelta;
+        InputScrollDelta(scrollDelta);
+
         zoom += scrollDelta[1];
         zoom = fmax(zoom, 0.1f);
         CameraZoom(zoom);
-        scrollDelta[1] = 0;
+        scrollDelta[1] = 0; // TODO: how to reset scoll delta when not scrolling
 
         mat4 m;
         CameraViewPerspectiveMatrix(m);
@@ -174,11 +133,7 @@ int main(void)
 
         GLCall(glClear(GL_COLOR_BUFFER_BIT));
 
-        for (int i = 0; i < numCircles; i++)
-        {
-            glm_vec2_rotate(circlesBuffer[i].position, deltaTime * 0.1f, circlesBuffer[i].position);
-        }
-
+        rect1->position[1] = 10 * sin(glfwGetTime() / 0.5f);
 
         PolygonRenderPolygons();
 
@@ -195,52 +150,10 @@ int main(void)
         glfwPollEvents();
     }
 
-    // Delete things??
+    // TODO: Delete things??
 
     glfwTerminate();
     return 0;
-}
-
-static void ScrollCallback(GLFWwindow* window, double xOffset, double yOffset)
-{
-    scrollDelta[0] = xOffset;
-    scrollDelta[1] = yOffset;
-}
-
-void MouseCallback(GLFWwindow* window, double x, double y)
-{
-    const float sensitivity = 6.0f;
-
-    static float prevX, prevY;
-    static bool firstCall = true;
-
-    if (firstCall)
-    {
-        prevX = x;
-        prevY = y;
-        firstCall = false;
-    }
-
-    float dx = x - prevX;
-    float dy = -(y - prevY);
-
-    prevX = x;
-    prevY = y;
-
-    mouseCoords[0] = x;
-    mouseCoords[1] = y;
-    mouseDelta[0] = dx;
-    mouseDelta[1] = dy;
-
-    yaw -= dx * deltaTime * sensitivity;
-    pitch += dy * deltaTime * sensitivity;
-}
-
-int KeyPressed(GLFWwindow* window, int key);
-
-inline int KeyPressed(GLFWwindow* window, int key)
-{
-    return glfwGetKey(window, key) == GLFW_PRESS;
 }
 
 void ProcessInput(GLFWwindow* window)
@@ -248,29 +161,11 @@ void ProcessInput(GLFWwindow* window)
     float speed = zoom / 2.0f;
     vec3 movement = { 0.0f };
 
-    if (KeyPressed(window, GLFW_KEY_ESCAPE))
+    InputGetAxes(window, movement); // TODO: passing vec3 as a vec2?
+
+    if (InputKeyPressed(window, GLFW_KEY_ESCAPE))
     {
         glfwSetWindowShouldClose(window, 1);
-    }
-
-    if (KeyPressed(window, GLFW_KEY_D))
-    {
-        movement[0] += 1;
-    }
-
-    if (KeyPressed(window, GLFW_KEY_A))
-    {
-        movement[0] -= 1;
-    }
-
-    if (KeyPressed(window, GLFW_KEY_W))
-    {
-        movement[1] += 1;
-    }
-
-    if (KeyPressed(window, GLFW_KEY_S))
-    {
-        movement[1] -= 1;
     }
 
     glm_vec3_scale(movement, deltaTime * speed, movement);

@@ -4,6 +4,7 @@
 #include <malloc.h>
 #include "shader.h"
 #include "debug.h"
+#include "renderer.h"
 
 static long GetFileLength(const char* filePath)
 {

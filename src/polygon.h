@@ -27,8 +27,6 @@ typedef struct LineInternal
 } LineInternal;
 
 void PolygonInitialize();
-void PolygonBindUnitCircle();
-void PolygonBindUnitSquare();
 
 Circle* PolygonCircle(vec2 position, float radius, vec3 color);
 Rect* PolygonRect(vec2 position, float width, float height, vec3 color); 

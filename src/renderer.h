@@ -43,6 +43,7 @@ void IndexBufferDelete(IndexBuffer* indexBuffer);
 
 void UniformBufferInitialize(UniformBuffer* uniformBuffer, void* data, unsigned int size, GLenum usageHint);
 void UniformBufferUpdate(UniformBuffer* uniformBuffer);
+void UniformBufferUpdateRange(UniformBuffer* uniformBuffer, unsigned int offset, unsigned int size);
 void UniformBufferBind(UniformBuffer* uniformBuffer);
 void UniformBufferUnbind();
 void UniformBufferDelete(UniformBuffer* uniformBuffer);
