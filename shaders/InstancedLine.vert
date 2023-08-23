@@ -2,9 +2,17 @@
 
 layout(location = 0) in vec2 position;
 
-layout (std140) uniform LineColors
+struct Line
 {
-    vec4 colors[4096];
+    vec3 color;
+    float padding;
+    vec2 a;
+    vec2 b;
+};
+
+layout (std140) uniform Lines
+{
+    Line lines[2048];
 };
 
 layout (std140) uniform Matrices
@@ -16,6 +24,8 @@ out vec3 vColor;
 
 void main()
 {
-    gl_Position = vpMatrix * vec4(position, 0.0, 1.0);
-    vColor = colors[gl_VertexID >> 1].rgb;
+    Line l = lines[gl_InstanceID];
+    vec2 vertPos = (gl_VertexID & 1) == 1 ? l.a : l.b;
+    gl_Position = vpMatrix * vec4(vertPos, 0.0, 1.0);
+    vColor = l.color;
 };

@@ -10,3 +10,5 @@ void InputScrollDelta(vec2 scrollDelta);
 void InputGetAxes(GLFWwindow* window, vec2 axisInput);
 
 int InputKeyPressed(GLFWwindow* window, int key);
+
+void InputReset();

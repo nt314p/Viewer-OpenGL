@@ -68,6 +68,13 @@ void InputGetAxes(GLFWwindow* window, vec2 axisInput)
     axisInput[1] = InputKeyPressed(window, GLFW_KEY_W) - InputKeyPressed(window, GLFW_KEY_S);
 }
 
+// Resets all input values. Should be called at the end of every frame
+void InputReset()
+{
+    glm_vec2_zero(MouseDelta);
+    glm_vec2_zero(ScrollDelta);
+}
+
 int InputKeyPressed(GLFWwindow* window, int key)
 {
     return glfwGetKey(window, key) == GLFW_PRESS;

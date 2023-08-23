@@ -20,15 +20,18 @@ typedef struct Rect
     float height;
 } Rect;
 
-typedef struct LineInternal
+typedef struct Line
 {
+    vec3 color;
+    float padding;
     vec2 a;
     vec2 b;
-} LineInternal;
+} Line;
 
 void PolygonInitialize();
 
 Circle* PolygonCircle(vec2 position, float radius, vec3 color);
 Rect* PolygonRect(vec2 position, float width, float height, vec3 color); 
+Line* PolygonLine(vec2 a, vec2 b, vec3 color);
 void PolygonRenderPolygons();
 void PolygonUpdateViewPerspectiveMatrix(mat4 vpMatrix);

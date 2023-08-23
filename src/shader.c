@@ -90,6 +90,7 @@ unsigned int ShaderCompile(unsigned int type, const char* filePath)
     glGetShaderInfoLog(id, length, NULL, message);
     printf("Failed to compile %s shader!\n", (type == GL_VERTEX_SHADER) ? "vertex" : "fragment");
     printf(message);
+    printf("%s\n", filePath);
     glDeleteShader(id);
     return 0;
 }

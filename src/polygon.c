@@ -24,16 +24,19 @@ static bool IsInitialized = false;
 
 static const int MaxCircleCount = 2048;
 static const int MaxRectCount = 2048;
-// static const int MaxLineCount = 4096;
+static const int MaxLineCount = 2048;
 
 static Circle* circles;
 static Rect* rects;
+static Line* lines;
 
 static UniformBuffer circlesBuffer;
 static UniformBuffer rectsBuffer;
+static UniformBuffer linesBuffer;
 
 static unsigned int numCircles;
 static unsigned int numRects;
+static unsigned int numLines;
 
 static mat4 vpMatrix;
 static UniformBuffer vpMatrixUB;
@@ -95,15 +98,19 @@ void PolygonInitialize()
 
     int circlesSize = sizeof(Circle) * MaxCircleCount;
     int rectsSize = sizeof(Rect) * MaxRectCount;
+    int linesSize = sizeof(Line) * MaxLineCount;
 
     circles = malloc(circlesSize);
     rects = malloc(rectsSize);
+    lines = malloc(linesSize);
 
     memset(circles, 0, circlesSize);
     memset(rects, 0, rectsSize);
+    memset(lines, 0, linesSize);
 
     UniformBufferInitialize(&circlesBuffer, circles, circlesSize, GL_DYNAMIC_DRAW);
     UniformBufferInitialize(&rectsBuffer, rects, rectsSize, GL_DYNAMIC_DRAW);
+    UniformBufferInitialize(&linesBuffer, lines, linesSize, GL_DYNAMIC_DRAW);
 
     rectShaderId = ShaderCreate(RectVertShaderPath, BasicFragShaderPath);
     circleShaderId = ShaderCreate(CircleVertShaderPath, BasicFragShaderPath);
@@ -116,6 +123,7 @@ void PolygonInitialize()
 
     ShaderBindUniformBuffer(circleShaderId, "Circles", &circlesBuffer);
     ShaderBindUniformBuffer(rectShaderId, "Rectangles", &rectsBuffer);
+    ShaderBindUniformBuffer(lineShaderId, "Lines", &linesBuffer);
 
     IsInitialized = true;
 }
@@ -141,6 +149,16 @@ Rect* PolygonRect(vec2 position, float width, float height, vec3 color)
     return r;
 }
 
+Line* PolygonLine(vec2 a, vec2 b, vec3 color)
+{
+    Line* l = lines + numLines;
+    glm_vec2_copy(a, l->a);
+    glm_vec2_copy(b, l->b);
+    glm_vec3_copy(color, l->color);
+    numLines++;
+    return l;
+}
+
 static void DrawCircles()
 {
     UniformBufferUpdateRange(&circlesBuffer, 0, sizeof(Circle) * numCircles);
@@ -157,6 +175,14 @@ static void DrawRects()
     GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, numRects));
 }
 
+static void DrawLines()
+{
+    UniformBufferUpdateRange(&linesBuffer, 0, sizeof(Line) * numLines);
+    ShaderUse(lineShaderId);
+    VertexArrayBind(UnitSquareVertexArrayId);
+    GLCall(glDrawArraysInstanced(GL_LINES, 0, 2, numLines));
+}
+
 void PolygonRenderPolygons()
 {
     UniformBufferUpdate(&vpMatrixUB);
@@ -169,6 +195,11 @@ void PolygonRenderPolygons()
     if (numRects > 0)
     {
         DrawRects();
+    }
+
+    if (numLines > 0)
+    {
+        DrawLines();
     }
 }
 

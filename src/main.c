@@ -1,4 +1,5 @@
 #include <cglm\cglm.h>
+#include <cglm\version.h>
 #define GLEW_STATIC
 #include <GL\glew.h>
 #include <GLFW\glfw3.h>
@@ -28,12 +29,15 @@ float RandomRange(float min, float max)
     return rand() * (max - min) / RAND_MAX + min;
 }
 
-int main(void)
+static GLFWwindow* InitializeWindow(int width, int height, int isFullscreen)
 {
     GLFWwindow* window;
 
     if (!glfwInit())
-        return -1;
+    {
+        printf("Failed to initialize glfw!\n");
+        return NULL;
+    }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -41,71 +45,55 @@ int main(void)
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
-    GLFWmonitor* monitor = NULL;//glfwGetPrimaryMonitor();
+    GLFWmonitor* monitor = NULL;
 
-    window = glfwCreateWindow(WIDTH, HEIGHT, "Viewer", monitor, NULL);
+    if (isFullscreen) monitor = glfwGetPrimaryMonitor();
+
+    window = glfwCreateWindow(width, height, "Viewer", monitor, NULL);
     if (!window)
     {
         printf("Failed to create window!\n");
         glfwTerminate();
-        return -1;
+        return NULL;
     }
 
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    InputInitialize(window);
+    return window;
+}
+
+int main(void)
+{
+    GLFWwindow* window = InitializeWindow(WIDTH, HEIGHT, false);
+    if (window == NULL) return -1;
 
     if (glewInit() != GLEW_OK)
         printf("Error initializing glew!\n");
 
-    printf("%s\n", glGetString(GL_VERSION));
+    printf("OpenGL version: %s\n", glGetString(GL_VERSION));
+    printf("cglm version: %d.%d.%d\n",
+        CGLM_VERSION_MAJOR, CGLM_VERSION_MINOR, CGLM_VERSION_PATCH);
 
+    InputInitialize(window);
     PolygonInitialize();
-
-    int maxUniformBlockSize;
-    GLCall(glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &maxUniformBlockSize));
-    printf("Max buffer size is %d bytes\n", maxUniformBlockSize);
 
     //GLCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
     GLCall(glClearColor(0.1f, 0.15f, 0.2f, 1.0f));
 
-    const int numLines = 4096;
-
-    vec4* lineColors = malloc(sizeof(vec4) * numLines);
-    LineInternal* lines = malloc(sizeof(LineInternal) * numLines);
-
-    for (int i = 0; i < numLines; i++)
-    {
-        lines[i].a[0] = RandomRange(-50, 50);
-        lines[i].a[1] = RandomRange(-50, 50);
-        lines[i].b[0] = RandomRange(-50, 50);
-        lines[i].b[1] = RandomRange(-50, 50);
-
-        lineColors[i][0] = RandomRange(0, 1);
-        lineColors[i][1] = RandomRange(0, 1);
-        lineColors[i][2] = RandomRange(0, 1);
-    }
-
-    UniformBuffer lineColorsUB;
-    UniformBufferInitialize(&lineColorsUB, lineColors, sizeof(vec4) * numLines, GL_STATIC_DRAW);
-    //ShaderBindUniformBuffer(lineShaderId, "LineColors", &lineColorsUB);
-
-    unsigned int linesVAO;
-    VertexArrayInitialize(&linesVAO);
-    VertexArrayBind(linesVAO);
-
-    VertexBuffer lineVertices;
-    VertexBufferInitialize(&lineVertices, lines, sizeof(LineInternal) * numLines);
-    VertexBufferBind(&lineVertices);
-    VertexAttribPointerFloats(0, 2);
-
     // CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
     CameraUseOrthographic(((float)WIDTH) / HEIGHT, 10.0f);
 
-    Rect* rect1 = PolygonRect((vec2) { 40, 20 }, 20, 40, (vec3) { 0.7f, 0.1f, 0.8f });
-    Circle* circle1 = PolygonCircle((vec2) { 0, 0 }, 3, (vec3) { 0, 0.7f, 0 });
+    vec3 wallColor = { 0.557, 0.675, 0.769 };
+
+    Rect* floor = PolygonRect((vec2) { 0, -1 }, 44, 2, wallColor);
+    Rect* leftWall = PolygonRect((vec2) { -21, 10 }, 2, 20, wallColor);
+    Rect* rightWall = PolygonRect((vec2) { 21, 10 }, 2, 20, wallColor);
+    Circle* circle1 = PolygonCircle((vec2) { 0, 10 }, 2, (vec3) { 0.471, 0.722, 0.435 });
+
+    float* position = circle1->position;
+    vec2 velocity = { 10.0f, 1.0f };
 
     while (!glfwWindowShouldClose(window))
     {
@@ -125,7 +113,6 @@ int main(void)
         zoom += scrollDelta[1];
         zoom = fmax(zoom, 0.1f);
         CameraZoom(zoom);
-        scrollDelta[1] = 0; // TODO: how to reset scoll delta when not scrolling
 
         mat4 m;
         CameraViewPerspectiveMatrix(m);
@@ -133,7 +120,12 @@ int main(void)
 
         GLCall(glClear(GL_COLOR_BUFFER_BIT));
 
-        rect1->position[1] = 10 * sin(glfwGetTime() / 0.5f);
+        glm_vec2_muladds(velocity, deltaTime, position);
+        velocity[1] -= 10 * deltaTime;
+
+        if (position[1] < 2) velocity[1] *= -1;
+        if (position[0] > 18) velocity[0] *= -1;
+        if (position[0] < -18) velocity[0] *= -1;
 
         PolygonRenderPolygons();
 
@@ -145,6 +137,8 @@ int main(void)
 
         // TimerStop();
         // printf("%f ms\n", TimerGetNanosecondsElapsed() / 1000000.0f);
+
+        InputReset();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
