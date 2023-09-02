@@ -1,5 +1,6 @@
-#include "camera.h"
 #include <string.h>
+#include <cglm\cglm.h>
+#include "camera.h"
 
 static vec3 position = { 0.0f, 0.0f, -1.0f };
 static vec3 right = { 1.0f, 0.0f, 0.0f };
@@ -12,6 +13,7 @@ static float near = 0.1f;
 static float far = 10.0f;
 static float orthoSize = 10.0f;
 static mat4 projection;
+static mat4 unprojection;
 
 // Initializes perspective projection parameters and sets
 // the projection type to perspective
@@ -21,7 +23,9 @@ void CameraUsePerspective(float fovY, float aspectRatio, float nearClip, float f
     aspect = aspectRatio;
     near = nearClip;
     far = farClip;
-    glm_perspective(fov, aspect, near, far, projection);
+    glm_perspective(fov, aspect, near, far, projection); 
+
+    // TODO: initialize unprojection matrix
 }
 
 // Initializes orthographic projection parameters and sets
@@ -31,6 +35,8 @@ void CameraUseOrthographic(float aspectRatio, float size)
     aspect = aspectRatio;
     orthoSize = size;
     glm_ortho_default_s(aspectRatio, size, projection);
+
+    // TODO: initialize unprojection matrix
 }
 
 // Returns P * V where P and V are the perspective and
@@ -82,7 +88,7 @@ P*Y, and P*Z.
 // Computes the view matrix of the camera
 void CameraViewMatrix(mat4 dest)
 {
-    dest[0][0] = right[0];
+    dest[0][0] = right[0]; // Remember: M[col][row]
     dest[0][1] = up[0];
     dest[0][2] = forward[0];
     dest[1][0] = right[1];
@@ -141,4 +147,10 @@ void CameraRotate(float yaw, float pitch, float roll)
     forward[0] = ca * sb * cg + sa * sg;
     forward[1] = ca * sb * sg - sa * cg;
     forward[2] = ca * cb;
+}
+
+// TODO: implement and possibly find a better name?
+void CameraScreenToWorldPoint()
+{
+    
 }

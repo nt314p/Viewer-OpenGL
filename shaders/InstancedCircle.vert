@@ -4,8 +4,7 @@ layout(location = 0) in vec2 position;
 
 struct Circle
 {
-    vec3 color;
-    float padding;
+    vec4 color;
     vec2 position;
     float radius;
     float padding2;
@@ -28,5 +27,5 @@ void main()
     Circle c = circles[gl_InstanceID];
     vec3 pos = vec3(position * c.radius + c.position, 0.0);
     gl_Position = vpMatrix * vec4(pos, 1.0);
-    vColor = c.color;
+    vColor = c.color.rgb;
 };

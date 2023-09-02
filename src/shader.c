@@ -66,7 +66,6 @@ void ShaderBindUniformBuffer(unsigned int shaderId, const char* name,
     GLCall(glUniformBlockBinding(shaderId, blockIndex, uniformBuffer->bindingPoint));
 }
 
-
 unsigned int ShaderCompile(unsigned int type, const char* filePath)
 {
     long fileLength = GetFileLength(filePath);

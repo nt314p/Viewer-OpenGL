@@ -28,10 +28,26 @@ typedef struct Line
     vec2 b;
 } Line;
 
+// Initializes polygons; must be called before other functions
 void PolygonInitialize();
 
+// Initializes a circle and returns its pointer
 Circle* PolygonCircle(vec2 position, float radius, vec3 color);
-Rect* PolygonRect(vec2 position, float width, float height, vec3 color); 
+
+// Allocates `count` contiguous circles and returns a pointer
+Circle* PolygonCircles(unsigned int count);
+
+// Initializes a rectangle and returns its pointer
+Rect* PolygonRect(vec2 position, float width, float height, vec3 color);
+
+// Allocates `count` contiguous rectangles and returns a pointer
+Rect* PolygonRects(unsigned int count);
+
+// Initializes a line and returns its pointer
 Line* PolygonLine(vec2 a, vec2 b, vec3 color);
-void PolygonRenderPolygons();
+
+// Allocates `count` contiguous lines and returns a pointer
+Line* PolygonLines(unsigned int count);
+
 void PolygonUpdateViewPerspectiveMatrix(mat4 vpMatrix);
+void PolygonRenderPolygons();
