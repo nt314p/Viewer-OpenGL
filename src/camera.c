@@ -2,6 +2,7 @@
 #include <cglm\cglm.h>
 #include "camera.h"
 
+// Camera transform 
 static vec3 position = { 0.0f, 0.0f, -1.0f };
 static vec3 right = { 1.0f, 0.0f, 0.0f };
 static vec3 up = { 0.0f, 1.0f, 0.0f };
@@ -15,6 +16,43 @@ static float orthoSize = 10.0f;
 static mat4 projection;
 static mat4 unprojection;
 
+static void SetPerspectiveProjection(float fovY, float aspectRatio, float nearClip,
+    float farClip)
+{
+    glm_perspective(fovY, aspectRatio, nearClip, farClip, projection);
+}
+
+// See https://en.wikipedia.org/wiki/Orthographic_projection
+static void SetOrthographicProjection(float aspectRatio, float size)
+{
+    float left = -size * aspectRatio;
+    float right = -left;
+    float bottom = -size;
+    float top = size;
+    float near = -size - 100.0f; // TODO: investigate ideal clip plane coordinates
+    float far = size + 100.0f;
+
+    glm_mat4_zero(projection);
+    glm_mat4_zero(unprojection);
+
+    // TODO: apply simplifications to equation
+    float invRL = 1.0f / (right - left);
+    float invTB = 1.0f / (top - bottom);
+    float invFN = 1.0f / (far - near);
+
+    projection[0][0] = 2.0f * invRL;
+    projection[1][1] = 2.0f * invTB;
+    projection[2][2] = -2.0f * invFN;
+
+    // no translation component since ortho proj is centered at origin
+    projection[3][3] = 1.0f;
+
+    unprojection[0][0] = (right - left) / 2.0f;
+    unprojection[1][1] = (top - bottom) / 2.0f;
+    unprojection[2][2] = (far - near) / -2.0f;
+    unprojection[3][3] = 1.0f;
+}
+
 // Initializes perspective projection parameters and sets
 // the projection type to perspective
 void CameraUsePerspective(float fovY, float aspectRatio, float nearClip, float farClip)
@@ -23,8 +61,8 @@ void CameraUsePerspective(float fovY, float aspectRatio, float nearClip, float f
     aspect = aspectRatio;
     near = nearClip;
     far = farClip;
-    glm_perspective(fov, aspect, near, far, projection); 
 
+    SetPerspectiveProjection(fov, aspect, near, far);
     // TODO: initialize unprojection matrix
 }
 
@@ -34,9 +72,8 @@ void CameraUseOrthographic(float aspectRatio, float size)
 {
     aspect = aspectRatio;
     orthoSize = size;
-    glm_ortho_default_s(aspectRatio, size, projection);
 
-    // TODO: initialize unprojection matrix
+    SetOrthographicProjection(aspectRatio, size);
 }
 
 // Returns P * V where P and V are the perspective and
@@ -46,7 +83,7 @@ void CameraUseOrthographic(float aspectRatio, float size)
 void CameraViewPerspectiveMatrix(mat4 dest)
 {
     CameraViewMatrix(dest);
-    glm_mat4_mul(projection, dest, dest);    
+    glm_mat4_mul(projection, dest, dest);
 }
 
 /*
@@ -104,6 +141,31 @@ void CameraViewMatrix(mat4 dest)
     dest[3][3] = 1.0f;
 }
 
+// Computes the camera matrix of the camera (inverse of view matrix)
+void CameraCameraMatrix(mat4 dest)
+{
+    dest[0][0] = right[0];
+    dest[0][1] = right[1];
+    dest[0][2] = right[2];
+    dest[0][3] = 0.0f;
+
+    dest[1][0] = up[0];
+    dest[1][1] = up[1];
+    dest[1][2] = up[2];
+    dest[1][3] = 0.0f;
+
+    dest[2][0] = forward[0];
+    dest[2][1] = forward[1];
+    dest[2][2] = forward[2];
+    dest[2][3] = 0.0f;
+
+    dest[3][0] = position[0];
+    dest[3][1] = position[1];
+    dest[3][2] = position[2];
+    dest[3][3] = 1.0f;
+}
+
+
 // Translates the camera in worldspace
 void CameraTranslate(vec3 translation)
 {
@@ -121,7 +183,7 @@ void CameraTranslateRelative(vec3 translation)
 // for orthographic camera
 void CameraZoom(float size)
 {
-    glm_ortho_default_s(aspect, size, projection);
+    SetOrthographicProjection(aspect, size);
 }
 
 void CameraRotate(float yaw, float pitch, float roll)
@@ -149,8 +211,13 @@ void CameraRotate(float yaw, float pitch, float roll)
     forward[2] = ca * cb;
 }
 
-// TODO: implement and possibly find a better name?
-void CameraScreenToWorldPoint()
+// Transforms a point in view space (x, y) { [-1, 1] to worldspace
+void CameraViewToWorldPoint(vec2 viewPoint, vec3 worldPoint)
 {
-    
+    vec4 v = { viewPoint[0], viewPoint[1], 0.0f, 1.0f };
+    mat4 cameraMatrix;
+    CameraCameraMatrix(cameraMatrix);
+    glm_mat4_mulv(unprojection, v, v);
+    glm_mat4_mulv(cameraMatrix, v, v);
+    glm_vec4_copy3(v, worldPoint);
 }

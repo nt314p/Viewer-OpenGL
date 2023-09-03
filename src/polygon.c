@@ -207,14 +207,14 @@ void PolygonRenderPolygons()
 {
     UniformBufferUpdate(&vpMatrixUB);
 
-    if (numCircles > 0)
-    {
-        DrawCircles();
-    }
-
     if (numRects > 0)
     {
         DrawRects();
+    }
+
+    if (numCircles > 0)
+    {
+        DrawCircles();
     }
 
     if (numLines > 0)

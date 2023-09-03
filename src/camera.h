@@ -10,3 +10,4 @@ void CameraTranslate(vec3 translation);
 void CameraTranslateRelative(vec3 translation);
 void CameraZoom(float size);
 void CameraRotate(float yaw, float pitch, float roll);
+void CameraViewToWorldPoint(vec2 viewPoint, vec3 worldPoint);

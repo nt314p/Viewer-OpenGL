@@ -176,7 +176,15 @@ int main(void)
 
         GLCall(glClear(GL_COLOR_BUFFER_BIT));
 
-        InputMouseCoords(ball.position);
+        vec2 mouseCoords;
+        InputMouseCoords(mouseCoords);
+
+        vec3 worldMouseCoords;
+        CameraViewToWorldPoint(mouseCoords, worldMouseCoords);
+        ball.position[0] = worldMouseCoords[0];
+        ball.position[1] = worldMouseCoords[1];
+
+        printf("(%f, %f, %f)\n", worldMouseCoords[0], worldMouseCoords[1], worldMouseCoords[2]);
 
         UpdateBall(&ball, deltaTime);
         //ball.velocity[1] -= 10 * deltaTime;

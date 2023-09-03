@@ -2,9 +2,12 @@
 #include <cglm\cglm.h>
 #include "input.h"
 
-static vec2 MouseCoords;
-static vec2 MouseDelta;
+static vec2 MouseCoords; // In normalized upright axis [-1, 1]
+static vec2 MouseDelta; // In pixels per frame
 static vec2 ScrollDelta;
+
+static int WindowWidth;
+static int WindowHeight;
 
 static void ScrollCallback(GLFWwindow* window, double deltaX, double deltaY)
 {
@@ -16,6 +19,13 @@ static void MouseCallback(GLFWwindow* window, double x, double y)
 {
     static float prevX, prevY;
     static bool firstCall = true;
+
+    float xScaled = x / (WindowWidth - 1);
+    float yScaled = y /-(WindowHeight - 1); // Assumes height is smaller than width
+
+
+    xScaled = 2 * xScaled - 1;
+    yScaled = 2 * yScaled + 1;
 
     if (firstCall)
     {
@@ -30,8 +40,8 @@ static void MouseCallback(GLFWwindow* window, double x, double y)
     prevX = x;
     prevY = y;
 
-    MouseCoords[0] = x;
-    MouseCoords[1] = y;
+    MouseCoords[0] = xScaled;
+    MouseCoords[1] = yScaled;
     MouseDelta[0] = dx;
     MouseDelta[1] = dy;
 }
@@ -40,6 +50,9 @@ void InputInitialize(GLFWwindow* window)
 {
     glfwSetCursorPosCallback(window, MouseCallback);
     glfwSetScrollCallback(window, ScrollCallback);
+
+    // TODO: this assumes that window size doesn't change after init
+    glfwGetWindowSize(window, &WindowWidth, &WindowHeight);
 }
 
 void InputMouseDelta(vec2 mouseDelta)

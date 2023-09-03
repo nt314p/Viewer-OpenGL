@@ -9,10 +9,11 @@
         "glew.h": "c",
         "stdio.h": "c",
         "polygon.h": "c",
-        "debug.h": "c"
+        "debug.h": "c",
+        "input.h": "c"
     },
     "[python]": {
-        "editor.defaultFormatter": "ms-python.autopep8"
+        "editor.defaultFormatter": "ms-python.python"
     },
     "python.formatting.provider": "none",
     "python.analysis.typeCheckingMode": "basic"
