@@ -49,7 +49,7 @@ static unsigned int rectShaderId;
 
 // TODO: Specialized triangulation for circles?
 // https://www.humus.name/index.php?page=News&ID=228
-void InitializeUnitCircle()
+static void InitializeUnitCircle()
 {
     // Add two vertices. One for the center and the other for the final vertex
     // that must overlap with the first vertex on the circle
@@ -73,7 +73,7 @@ void InitializeUnitCircle()
 }
 
 // Initializes a unit square (side length one) centered at the origin
-void InitializeUnitSquare()
+static void InitializeUnitSquare()
 {
     glm_vec2_copy((vec2) { 0.5f, 0.5f }, UnitSquareVertices[0]);
     glm_vec2_copy((vec2) { -0.5f, 0.5f }, UnitSquareVertices[1]);

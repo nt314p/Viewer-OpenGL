@@ -1,5 +1,6 @@
 #define GLEW_STATIC
 #include <GL\glew.h>
+#include <cglm\cglm.h>
 #include <stdio.h>
 #include "debug.h"
 
@@ -20,4 +21,14 @@ int GLLogCall(const char* function, const char* file, int line)
     }
 
     return 1;
+}
+
+void LogVec2(vec2 v)
+{
+    printf("(%f, %f)\n", v[0], v[1]);
+}
+
+void LogVec3(vec3 v)
+{
+    printf("(%f, %f, %f)\n", v[0], v[1], v[2]);
 }

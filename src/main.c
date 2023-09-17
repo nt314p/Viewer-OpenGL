@@ -32,6 +32,17 @@ struct Ball
     vec2 velocity;
 } typedef Ball;
 
+
+// Computes the orthogonal decomposition of vector `a` with respect to vector `b`
+// Requires that vector `b` is a unit vector
+// Equivalent to `dest = a - dot(a, b) * b`
+void glm_vec2_ortho_decomp(vec2 a, vec2 b, vec2 dest)
+{
+    glm_vec2_copy(a, dest);
+    float dot = glm_vec2_dot(a, b);
+    glm_vec2_muladds(b, -dot, dest);
+}
+
 static void UpdateBall(Ball* ball, float deltaTime)
 {
     glm_vec2_copy(ball->position, ball->circle->position);
@@ -41,18 +52,21 @@ static void UpdateBall(Ball* ball, float deltaTime)
     glm_vec2_add(ball->line->b, ball->velocity, ball->line->b);
 }
 
+// Computes the collision time(s), if any, between two circles with position p, velocity v, and radius r
+// Returns true if any collision occured - collision times are placed in the `times` parameter
 static bool CircleCircleCollisionTime(vec2 p1, vec2 v1, float r1, vec2 p2, vec2 v2, float r2,
-    vec2 outTimes)
+    vec2 times)
 {
     vec2 dp, dv;
     glm_vec2_sub(p2, p1, dp); // delta of the positions
-    glm_vec2_sub(v2, v1, dv); // delta of the velocities;
+    glm_vec2_sub(v2, v1, dv); // delta of the velocities
+    float r = r1 + r2; // overall radius
 
     // Collision times is a quadratic function of t
     // a * t^2 + b * t + c = 0
     float a = glm_vec2_dot(dv, dv);
-    float b = glm_vec2_dot(dp, dv);
-    float c = glm_vec2_dot(dp, dp);
+    float b = 2 * glm_vec2_dot(dp, dv);
+    float c = glm_vec2_dot(dp, dp) - r * r;
 
     float discriminant = b * b - 4 * a * c;
     if (discriminant < 0) return false;
@@ -61,16 +75,48 @@ static bool CircleCircleCollisionTime(vec2 p1, vec2 v1, float r1, vec2 p2, vec2 
     float v = sqrtf(discriminant) / a2;
     float u = -b / a2;
 
-    outTimes[0] = u - v; // TODO: check for negative collision times
-    outTimes[1] = u + v;
+    times[0] = u - v; // TODO: check for negative collision times
+    times[1] = u + v;
 
     return true;
 }
+
+Line* debug_vParallel;
+Line* debug_vPerp;
+Line* debug_pPerp;
 
 // Requires that `lineDir` is normalized
 // TODO: write simplified methods for horizontal or vertical lines
 static float CircleLineCollisionTime(vec2 circleP, vec2 circleV, vec2 lineP, vec2 lineDir)
 {
+    glm_vec2_copy(circleP, debug_vParallel->a);
+    glm_vec2_copy(lineDir, debug_vParallel->b);
+    glm_vec2_copy(circleP, debug_vPerp->a);
+    glm_vec2_copy(circleP, debug_pPerp->a);
+
+    float d = glm_vec2_dot(lineDir, circleV);
+    glm_vec2_scale(debug_vParallel->b, d, debug_vParallel->b);
+    glm_vec2_sub(circleV, debug_vParallel->b, debug_vPerp->b);
+
+    vec2 diff;
+    glm_vec2_sub(lineP, circleP, diff);
+    float dotPerpP = glm_vec2_dot(diff, lineDir);
+    vec2 paraP;
+    glm_vec2_scale(lineDir, dotPerpP, paraP);
+    glm_vec2_sub(diff, paraP, debug_pPerp->b);
+
+    glm_vec2_add(debug_vParallel->b, circleP, debug_vParallel->b);
+    glm_vec2_add(debug_vPerp->b, circleP, debug_vPerp->b);
+    glm_vec2_add(debug_pPerp->b, circleP, debug_pPerp->b);
+
+    // aPara = circleP
+    // bPara = lineDir * dot(lineDir, circleV) + circleP
+
+    // aPerp = circleP
+    // bPerp = circleV - dir(vPara) // orthographic decomposition
+
+    // aPPerp = circleP
+    // bPPerp = (lineP - circleP) - dot(lineP - circleP, lineDir) * lineDir // ortho decomp.
 
     return 0;
 }
@@ -110,7 +156,7 @@ static GLFWwindow* InitializeWindow(int width, int height, int isFullscreen)
 
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
     return window;
 }
@@ -143,13 +189,20 @@ int main(void)
     Rect* rightWall = PolygonRect((vec2) { 21, 10 }, 2, 20, wallColor);
     Rect* ceiling = PolygonRect((vec2) { 0, 21 }, 44, 2, wallColor);
     Circle* circle1 = PolygonCircle((vec2) { 0, 10 }, 2, (vec3) { 0.471, 0.722, 0.435 });
-    Line* velIndicator = PolygonLine((vec2) {0, 0}, (vec2) {0, 0}, (vec3){1, 1, 1});
+    Line* velIndicator = PolygonLine(GLM_VEC2_ZERO, GLM_VEC2_ZERO, (vec3) { 1, 1, 1 });
+    debug_vParallel = PolygonLine(GLM_VEC2_ZERO, GLM_VEC2_ZERO, (vec3) { 0.6f, 1, 1 });
+    debug_vPerp = PolygonLine(GLM_VEC2_ZERO, GLM_VEC2_ZERO, (vec3) { 1, 0.6f, 1 });
+    debug_pPerp = PolygonLine(GLM_VEC2_ZERO, GLM_VEC2_ZERO, (vec3) { 1, 1, 0.6f });
+
+    Circle* middle = PolygonCircle(GLM_VEC2_ZERO, 1, (vec3) { 1, 1, 1 });
+
+    Line* testLine = PolygonLine((vec2) { -10, -10 }, (vec2) { 10, 10 }, (vec3) { 1, 1, 1 });
 
     Ball ball;
     ball.circle = circle1;
     ball.line = velIndicator;
-    glm_vec2_copy((vec2) {0, 10}, ball.position);
-    glm_vec2_copy((vec2) {10.0f, 3.0f}, ball.velocity);
+    glm_vec2_copy((vec2) { 0, 10 }, ball.position);
+    glm_vec2_copy((vec2) { 10.0f, 3.0f }, ball.velocity);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -184,9 +237,26 @@ int main(void)
         ball.position[0] = worldMouseCoords[0];
         ball.position[1] = worldMouseCoords[1];
 
-        printf("(%f, %f, %f)\n", worldMouseCoords[0], worldMouseCoords[1], worldMouseCoords[2]);
+        //LogVec3(worldMouseCoords);
 
         UpdateBall(&ball, deltaTime);
+
+        CircleLineCollisionTime(ball.position, ball.velocity, (vec2) { 0, 0 }, (vec2) { 0.7071f, 0.7071f });
+
+        vec2 times;
+        bool collided = CircleCircleCollisionTime(ball.position, ball.velocity, circle1->radius,
+            middle->position, (vec2) { 0, 0 }, middle->radius, times);
+
+        if (collided)
+        {
+            LogVec2(times);
+        }
+        else
+        {
+            printf("No collision\n");
+        }
+
+
         //ball.velocity[1] -= 10 * deltaTime;
 
         // if (ball.position[1] < 2) ball.velocity[1] *= -1;
