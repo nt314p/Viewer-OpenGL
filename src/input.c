@@ -1,6 +1,7 @@
 #include <GLFW\glfw3.h>
 #include <cglm\cglm.h>
 #include "input.h"
+#include "debug.h"
 
 static vec2 MouseCoords; // In normalized upright axis [-1, 1]
 static vec2 MouseDelta; // In pixels per frame
@@ -40,7 +41,7 @@ static void MouseCallback(GLFWwindow* window, double x, double y)
     prevX = x;
     prevY = y;
 
-    MouseCoords[0] = xScaled;
+    MouseCoords[0] = xScaled; // TODO: what are these units?
     MouseCoords[1] = yScaled;
     MouseDelta[0] = dx;
     MouseDelta[1] = dy;
