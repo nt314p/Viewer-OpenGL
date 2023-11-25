@@ -22,7 +22,7 @@ static const int HEIGHT = 720;
 static void ProcessInput(GLFWwindow* window);
 
 static double deltaTime;
-static double lastFrame;
+static double lastFrameTime;
 
 static float zoom = 10.0f;
 
@@ -43,55 +43,8 @@ static void UpdateBall(Ball* ball, float deltaTime)
     glm_vec2_add(ball->line->b, ball->velocity, ball->line->b);
 }
 
-Line* debug_vParallel;
-Line* debug_vPerp;
-Line* debug_pPerp;
-
-float LineLength(Line* l)
-{
-    return glm_vec2_distance(l->a, l->b);
-}
-
-// Requires that `lineDir` is normalized
-// deprecated
-// TODO: clean up debug stuff
-static float _CircleLineCollisionTime(vec2 circleP, vec2 circleV, float r, vec2 lineP, vec2 lineDir)
-{
-    glm_vec2_copy(circleP, debug_vParallel->a);
-    glm_vec2_copy(lineDir, debug_vParallel->b);
-    glm_vec2_copy(circleP, debug_vPerp->a);
-    glm_vec2_copy(circleP, debug_pPerp->a);
-
-    float d = glm_vec2_dot(lineDir, circleV);
-    glm_vec2_scale(debug_vParallel->b, d, debug_vParallel->b);
-    glm_vec2_sub(circleV, debug_vParallel->b, debug_vPerp->b);
-
-    float perpVelocity = glm_vec2_norm(debug_vPerp->b);
-
-    vec2 diff;
-    glm_vec2_sub(lineP, circleP, diff);
-    float dotPerpP = glm_vec2_dot(diff, lineDir);
-    vec2 paraP;
-    glm_vec2_scale(lineDir, dotPerpP, paraP);
-    glm_vec2_sub(diff, paraP, debug_pPerp->b);
-
-    // TODO: optimize this algorithm
-    // currently requires two sqrt (probably only needs one)
-    // also only returns a single time
-    float centerDistToLine = glm_vec2_norm(debug_pPerp->b);
-    float edgeDistToLine = centerDistToLine - r;
-
-    glm_vec2_add(debug_vParallel->b, circleP, debug_vParallel->b);
-    glm_vec2_add(debug_vPerp->b, circleP, debug_vPerp->b);
-    glm_vec2_add(debug_pPerp->b, circleP, debug_pPerp->b);
-
-    //printf("vPerp: %f; centerDist: %f; edgeDist: %f; t: %f\n", perpVelocity, centerDistToLine, edgeDistToLine, edgeDistToLine / perpVelocity);
-
-    return edgeDistToLine / perpVelocity;
-}
-
 // TODO: is this uniformly distributed?
-float RandomRange(float min, float max)
+static float RandomRange(float min, float max)
 {
     return rand() * (max - min) / RAND_MAX + min;
 }
@@ -160,9 +113,6 @@ int main(void)
     Rect* ceiling = PolygonRect((vec2) { 0, 21 }, 44, 2, wallColor);
     Circle* circle1 = PolygonCircle((vec2) { 0, 10 }, 2, (vec3) CLR_MEDIUMSEAGREEN);
     Line* velIndicator = PolygonLine(GLM_VEC2_ZERO, GLM_VEC2_ZERO, (vec3) CLR_WHITE);
-    debug_vParallel = PolygonLine(GLM_VEC2_ZERO, GLM_VEC2_ZERO, (vec3) CLR_CYAN);
-    debug_vPerp = PolygonLine(GLM_VEC2_ZERO, GLM_VEC2_ZERO, (vec3) CLR_HOTPINK);
-    debug_pPerp = PolygonLine(GLM_VEC2_ZERO, GLM_VEC2_ZERO, (vec3) CLR_GOLD);
 
     Circle* middle = PolygonCircle(GLM_VEC2_ZERO, 1, (vec3) CLR_WHITE);
     Line* testLine = PolygonLine((vec2) { -10, -10 }, (vec2) { 10, 10 }, (vec3) CLR_WHITE);
@@ -175,9 +125,9 @@ int main(void)
 
     while (!glfwWindowShouldClose(window))
     {
-        double currentFrame = glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
+        double currentFrameTime = glfwGetTime();
+        deltaTime = currentFrameTime - lastFrameTime;
+        lastFrameTime = currentFrameTime;
 
         // printf("%f\n", deltaTime);
 
@@ -226,7 +176,7 @@ int main(void)
         }
 
         PolygonRenderPolygons();
-        //InputReset();
+        InputReset();
 
         glfwSwapBuffers(window);
         glfwPollEvents();

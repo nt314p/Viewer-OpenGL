@@ -10,6 +10,26 @@ void glm_vec2_ortho_decomp(vec2 a, vec2 b, vec2 dest)
     glm_vec2_muladds(b, -dot, dest);
 }
 
+// Computes the reflection of incident vector `v` about normal `n`
+// Requires that `n` is a unit vector
+// Equivalent to `dest = v - 2 * dot(v, n) * n`
+void glm_vec2_reflect(vec2 v, vec2 n, vec2 dest)
+{
+    glm_vec2_copy(v, dest);
+    float dot = glm_vec2_dot(v, n);
+    glm_vec2_muladds(n, -2 * dot, dest);
+}
+
+// Computes the unit normal of vector `v`
+// Equivalent to `dest = (v.y, -v.x) / len(v)`
+void glm_vec2_normal(vec2 v, vec2 dest)
+{
+    glm_vec2_normalize_to(v, dest);
+    float tempX = dest[0];
+    dest[0] = dest[1];
+    dest[1] = -tempX;
+}
+
 // Computes the collision time(s), if any, between two circles with position p, velocity v, and radius r
 // Returns true if any collision occured - collision times are placed in the `times` parameter
 bool CircleCircleCollisionTime(vec2 p1, vec2 v1, float r1, vec2 p2, vec2 v2, float r2,
