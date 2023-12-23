@@ -23,7 +23,7 @@ typedef struct Rect
 typedef struct Line
 {
     vec3 color;
-    float padding;
+    float length;
     vec2 a;
     vec2 b;
 } Line;

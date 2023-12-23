@@ -166,7 +166,13 @@ Line* PolygonLine(vec2 a, vec2 b, vec3 color)
 {
     Line* l = lines + numLines;
     glm_vec2_copy(a, l->a);
-    glm_vec2_copy(b, l->b);
+    glm_vec2_sub(b, a, l->b);
+    float length = glm_vec2_norm(l->b);
+    l->length = length;
+    
+    l->b[0] /= length;
+    l->b[1] /= length;
+
     glm_vec3_copy(color, l->color);
     numLines++;
     return l;

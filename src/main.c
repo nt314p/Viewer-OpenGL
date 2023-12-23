@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <string.h>
+#include <stdint.h>
 #include "debug.h"
 #include "timer.h"
 #include "renderer.h"
@@ -34,13 +35,41 @@ struct Ball
     vec2 velocity;
 } typedef Ball;
 
+typedef struct Object
+{
+    char object[sizeof(Circle)]; // Circle and Line are both 32 bytes
+    float minTime;
+    int isCircle;
+} Object;
+
+/*
+
+n objects
+
+(n^2 - n) / 2 pairs
+n(n-1)/2
+
+
+
+n = 4
+3 + 2 + 1
+
+CD
+BC BD
+AB AC AD
+
+*/
+
 static void UpdateBall(Ball* ball, float deltaTime)
 {
     glm_vec2_copy(ball->position, ball->circle->position);
 
     glm_vec2_copy(ball->position, ball->line->a);
-    glm_vec2_copy(ball->position, ball->line->b);
-    glm_vec2_add(ball->line->b, ball->velocity, ball->line->b);
+    glm_vec2_copy(ball->velocity, ball->line->b);
+    float length = glm_vec2_norm(ball->velocity);
+    ball->line->length = length;
+    ball->line->b[0] /= length;
+    ball->line->b[1] /= length;
 }
 
 // TODO: is this uniformly distributed?
@@ -66,7 +95,6 @@ static GLFWwindow* InitializeWindow(int width, int height, int isFullscreen)
     glfwWindowHint(GLFW_SAMPLES, 4);
 
     GLFWmonitor* monitor = NULL;
-
     if (isFullscreen) monitor = glfwGetPrimaryMonitor();
 
     window = glfwCreateWindow(width, height, "Viewer", monitor, NULL);
@@ -111,11 +139,32 @@ int main(void)
     Rect* leftWall = PolygonRect((vec2) { -21, 10 }, 2, 20, wallColor);
     Rect* rightWall = PolygonRect((vec2) { 21, 10 }, 2, 20, wallColor);
     Rect* ceiling = PolygonRect((vec2) { 0, 21 }, 44, 2, wallColor);
-    Circle* circle1 = PolygonCircle((vec2) { 0, 10 }, 2, (vec3) CLR_MEDIUMSEAGREEN);
-    Line* velIndicator = PolygonLine(GLM_VEC2_ZERO, GLM_VEC2_ZERO, (vec3) CLR_WHITE);
+    Circle* circle1 = PolygonCircle((vec2) { 0, 10 }, 2, (vec3)CLR_MEDIUMSEAGREEN);
+    Circle* ghostCircle = PolygonCircle((vec2) { 0, 10 }, 2, (vec3)CLR_PALEGREEN);
+    Line* velIndicator = PolygonLine(GLM_VEC2_ZERO, GLM_VEC2_ZERO, (vec3)CLR_WHITE);
 
-    Circle* middle = PolygonCircle(GLM_VEC2_ZERO, 1, (vec3) CLR_WHITE);
-    Line* testLine = PolygonLine((vec2) { -10, -10 }, (vec2) { 10, 10 }, (vec3) CLR_WHITE);
+    Circle* middle = PolygonCircle(GLM_VEC2_ZERO, 1, (vec3)CLR_WHITE);
+    Line* testLine = PolygonLine((vec2) { -10, -10 }, (vec2) { 10, 10 }, (vec3)CLR_WHITE);
+
+    Line* bounds = PolygonLines(4);
+
+    for (int i = 0; i < 4; i++)
+    {
+        glm_vec3_copy((vec3)CLR_ORANGE, (bounds + i)->color);
+        (bounds + i)->length = 20;
+    }
+
+    glm_vec2_copy((vec2) { -10, 10 }, bounds[0].a);
+    glm_vec2_copy((vec2) { 1, 0 }, bounds[0].b);
+
+    glm_vec2_copy((vec2) { 10, -10 }, bounds[1].a);
+    glm_vec2_copy((vec2) { 0, 1 }, bounds[1].b);
+
+    glm_vec2_copy((vec2) { -10, -10 }, bounds[2].a);
+    glm_vec2_copy((vec2) { 1, 0 }, bounds[2].b);
+
+    glm_vec2_copy((vec2) { -10, -10 }, bounds[3].a);
+    glm_vec2_copy((vec2) { 0, 1 }, bounds[3].b);
 
     Ball ball;
     ball.circle = circle1;
@@ -129,11 +178,7 @@ int main(void)
         deltaTime = currentFrameTime - lastFrameTime;
         lastFrameTime = currentFrameTime;
 
-        // printf("%f\n", deltaTime);
-
         ProcessInput(window);
-
-        //CameraRotate(yaw, pitch, 0.0f);
 
         vec2 scrollDelta;
         InputScrollDelta(scrollDelta);
@@ -153,8 +198,7 @@ int main(void)
 
         vec3 worldMouseCoords;
         CameraViewToWorldPoint(mouseCoords, worldMouseCoords);
-        ball.position[0] = worldMouseCoords[0];
-        ball.position[1] = worldMouseCoords[1];
+        glm_vec2_copy(worldMouseCoords, ball.position);
 
         //LogVec3(worldMouseCoords);
 
@@ -162,18 +206,45 @@ int main(void)
 
         //CircleLineCollisionTime(ball.position, ball.velocity, circle1->radius, (vec2) { 0, 0 }, (vec2) { 0.7071f, 0.7071f });
 
-        vec2 times;
-        bool collided = CircleLineCollisionTime(ball.position, ball.velocity, circle1->radius,
-           (vec2) {0, 0}, (vec2) { 0.7071f, 0.7071f }, times);
+        float minTime = 999;
 
-        if (collided)
+        vec2 times;
+
+        for (int i = 0; i < 4; i++)
         {
-            LogVec2(times);
+            bool collided = CircleLineCollisionTime(
+                ball.position, 
+                ball.velocity,
+                circle1->radius,
+                bounds[i].a,
+                bounds[i].b, 
+                times);
+
+            float potentialTime;
+
+            if (times[1] < 0) continue; // both times are less than 0, no collision
+            if (times[0] < 0) 
+            {
+                potentialTime = times[1]; // first time is < 0, use second time
+            }
+            else
+            {
+                potentialTime = times[0]; // both times positive, use first time
+            }
+            if (potentialTime < minTime) minTime = potentialTime;
         }
-        else
-        {
-            printf("No collision\n");
-        }
+
+        glm_vec2_copy(ball.position, ghostCircle->position);
+        glm_vec2_muladds(ball.velocity, minTime, ghostCircle->position);
+
+        // if (collided)
+        // {
+        //     LogVec2(times);
+        // }
+        // else
+        // {
+        //     printf("No collision\n");
+        // }
 
         PolygonRenderPolygons();
         InputReset();
