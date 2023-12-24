@@ -33,38 +33,17 @@ struct Ball
     Line* line;
     vec2 position;
     vec2 velocity;
+    float time;
+    float hitTime;
 } typedef Ball;
 
-typedef struct Object
+static void UpdateBall(Ball* ball, float time)
 {
-    char object[sizeof(Circle)]; // Circle and Line are both 32 bytes
-    float minTime;
-    int isCircle;
-} Object;
-
-/*
-
-n objects
-
-(n^2 - n) / 2 pairs
-n(n-1)/2
-
-
-
-n = 4
-3 + 2 + 1
-
-CD
-BC BD
-AB AC AD
-
-*/
-
-static void UpdateBall(Ball* ball, float deltaTime)
-{
+    float deltaTime = time - ball->time;
     glm_vec2_copy(ball->position, ball->circle->position);
+    glm_vec2_muladds(ball->velocity, deltaTime, ball->circle->position);
 
-    glm_vec2_copy(ball->position, ball->line->a);
+    glm_vec2_copy(ball->circle->position, ball->line->a);
     glm_vec2_copy(ball->velocity, ball->line->b);
     float length = glm_vec2_norm(ball->velocity);
     ball->line->length = length;
@@ -133,18 +112,9 @@ int main(void)
     // CameraUsePerspective(glm_rad(45.0f), ((float)WIDTH) / HEIGHT, 0.1f, 100.0f);
     CameraUseOrthographic(((float)WIDTH) / HEIGHT, 10.0f);
 
-    vec3 wallColor = CLR_CORNFLOWERBLUE;
-
-    Rect* floor = PolygonRect((vec2) { 0, -1 }, 44, 2, wallColor);
-    Rect* leftWall = PolygonRect((vec2) { -21, 10 }, 2, 20, wallColor);
-    Rect* rightWall = PolygonRect((vec2) { 21, 10 }, 2, 20, wallColor);
-    Rect* ceiling = PolygonRect((vec2) { 0, 21 }, 44, 2, wallColor);
     Circle* circle1 = PolygonCircle((vec2) { 0, 10 }, 2, (vec3)CLR_MEDIUMSEAGREEN);
     Circle* ghostCircle = PolygonCircle((vec2) { 0, 10 }, 2, (vec3)CLR_PALEGREEN);
     Line* velIndicator = PolygonLine(GLM_VEC2_ZERO, GLM_VEC2_ZERO, (vec3)CLR_WHITE);
-
-    Circle* middle = PolygonCircle(GLM_VEC2_ZERO, 1, (vec3)CLR_WHITE);
-    Line* testLine = PolygonLine((vec2) { -10, -10 }, (vec2) { 10, 10 }, (vec3)CLR_WHITE);
 
     Line* bounds = PolygonLines(4);
 
@@ -166,15 +136,22 @@ int main(void)
     glm_vec2_copy((vec2) { -10, -10 }, bounds[3].a);
     glm_vec2_copy((vec2) { 0, 1 }, bounds[3].b);
 
-    Ball ball;
+    Ball ball = { 0 };
     ball.circle = circle1;
     ball.line = velIndicator;
-    glm_vec2_copy((vec2) { 0, 10 }, ball.position);
-    glm_vec2_copy((vec2) { 10.0f, 3.0f }, ball.velocity);
+    ball.time = 0.0f;
+    ball.hitTime = -1.0f;
+    glm_vec2_copy((vec2) { 0, 0 }, ball.position);
+    glm_vec2_copy((vec2) { 20, 6 }, ball.velocity);
+
+    Interaction interaction;
+
+    double startTime = glfwGetTime();
 
     while (!glfwWindowShouldClose(window))
     {
         double currentFrameTime = glfwGetTime();
+        double currentSimTime = currentFrameTime - startTime;
         deltaTime = currentFrameTime - lastFrameTime;
         lastFrameTime = currentFrameTime;
 
@@ -198,44 +175,78 @@ int main(void)
 
         vec3 worldMouseCoords;
         CameraViewToWorldPoint(mouseCoords, worldMouseCoords);
-        glm_vec2_copy(worldMouseCoords, ball.position);
+        //glm_vec2_copy(worldMouseCoords, ball.position);
 
         //LogVec3(worldMouseCoords);
 
-        UpdateBall(&ball, deltaTime);
+        int computeHit = 0;
 
-        //CircleLineCollisionTime(ball.position, ball.velocity, circle1->radius, (vec2) { 0, 0 }, (vec2) { 0.7071f, 0.7071f });
-
-        float minTime = 999;
-
-        vec2 times;
-
-        for (int i = 0; i < 4; i++)
+        if (ball.hitTime > 0 && ball.hitTime < currentSimTime)
         {
-            bool collided = CircleLineCollisionTime(
-                ball.position, 
-                ball.velocity,
-                circle1->radius,
-                bounds[i].a,
-                bounds[i].b, 
-                times);
+            glm_vec2_muladds(ball.velocity, ball.hitTime - ball.time, ball.position);
 
-            float potentialTime;
+            if (interaction.id % 2 == 0) // horizontal lines, reflect vertical
+            {
+                glm_vec2_reflect(ball.velocity, (vec2) { 0, 1 }, ball.velocity);
+            }
+            else // vertical lines, reflect horizontal
+            {
+                glm_vec2_reflect(ball.velocity, (vec2) { 1, 0 }, ball.velocity);
+            }
 
-            if (times[1] < 0) continue; // both times are less than 0, no collision
-            if (times[0] < 0) 
-            {
-                potentialTime = times[1]; // first time is < 0, use second time
-            }
-            else
-            {
-                potentialTime = times[0]; // both times positive, use first time
-            }
-            if (potentialTime < minTime) minTime = potentialTime;
+            ball.time = ball.hitTime;
+            computeHit = 1;
+            printf("Collided, updating...\n");
+            printf("Ball hit time: %f\n", ball.hitTime);
+            printf("Sim time: %f\n", currentSimTime);
         }
 
-        glm_vec2_copy(ball.position, ghostCircle->position);
-        glm_vec2_muladds(ball.velocity, minTime, ghostCircle->position);
+        if (ball.hitTime < 0 || computeHit)
+        {
+            float minTime = 999;
+
+            vec2 times;
+
+            for (int i = 0; i < 4; i++)
+            {
+                bool collided = CircleLineCollisionTime(
+                    ball.position,
+                    ball.velocity,
+                    circle1->radius,
+                    bounds[i].a,
+                    bounds[i].b,
+                    times);
+
+                if (!collided) continue;
+
+                float potentialTime = 999;
+
+                if (times[1] < 0) continue; // both times are less than 0, no collision
+                if (times[0] < 0)
+                {
+                    potentialTime = times[1]; // first time is < 0, use second time
+                }
+                else
+                {
+                    potentialTime = times[0]; // both times positive, use first time
+                }
+                if (potentialTime < minTime)
+                {
+                    minTime = potentialTime;
+                    interaction.id = i;
+                    interaction.time = minTime;
+                }
+            }
+
+            minTime += ball.time - 0.00001f;
+
+            glm_vec2_copy(ball.position, ghostCircle->position);
+            glm_vec2_muladds(ball.velocity, minTime - ball.time, ghostCircle->position);
+            ball.hitTime = minTime;
+            printf("Computed min time: %f\n", minTime);
+        }
+
+        UpdateBall(&ball, currentSimTime);
 
         // if (collided)
         // {

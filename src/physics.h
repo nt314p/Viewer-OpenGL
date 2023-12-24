@@ -1,6 +1,12 @@
 #pragma once
 #include <cglm\cglm.h>
 
+typedef struct Interaction
+{
+    uint32_t id; // the id of the body the object is interacting with
+    float time; // time of hit
+} Interaction;
+
 void glm_vec2_ortho_decomp(vec2 a, vec2 b, vec2 dest);
 void glm_vec2_reflect(vec2 v, vec2 n, vec2 dest);
 
