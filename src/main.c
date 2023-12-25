@@ -7,6 +7,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <stdint.h>
+#include <float.h>
 #include "debug.h"
 #include "timer.h"
 #include "renderer.h"
@@ -29,12 +30,11 @@ static float zoom = 10.0f;
 
 struct Ball
 {
-    Circle* circle;
-    Line* line;
+    Circle* circle; // underlying circle render object
+    Line* line; // velocity indicator
     vec2 position;
     vec2 velocity;
-    float time;
-    float hitTime;
+    float time; // the ball was at position `position` at time `time`
 } typedef Ball;
 
 static void UpdateBall(Ball* ball, float time)
@@ -42,6 +42,8 @@ static void UpdateBall(Ball* ball, float time)
     float deltaTime = time - ball->time;
     glm_vec2_copy(ball->position, ball->circle->position);
     glm_vec2_muladds(ball->velocity, deltaTime, ball->circle->position);
+
+    if (ball->line == NULL) return;
 
     glm_vec2_copy(ball->circle->position, ball->line->a);
     glm_vec2_copy(ball->velocity, ball->line->b);
@@ -97,7 +99,9 @@ int main(void)
     if (window == NULL) return -1;
 
     if (glewInit() != GLEW_OK)
+    {
         printf("Error initializing glew!\n");
+    }
 
     printf("OpenGL version: %s\n", glGetString(GL_VERSION));
     printf("cglm version: %d.%d.%d\n",
@@ -113,40 +117,39 @@ int main(void)
     CameraUseOrthographic(((float)WIDTH) / HEIGHT, 10.0f);
 
     Circle* circle1 = PolygonCircle((vec2) { 0, 10 }, 2, (vec3)CLR_MEDIUMSEAGREEN);
-    Circle* ghostCircle = PolygonCircle((vec2) { 0, 10 }, 2, (vec3)CLR_PALEGREEN);
-    Line* velIndicator = PolygonLine(GLM_VEC2_ZERO, GLM_VEC2_ZERO, (vec3)CLR_WHITE);
 
     Line* bounds = PolygonLines(4);
 
     for (int i = 0; i < 4; i++)
     {
         glm_vec3_copy((vec3)CLR_ORANGE, (bounds + i)->color);
-        (bounds + i)->length = 20;
+        (bounds + i)->length = i % 2 == 0 ? 40 : 20;
     }
 
-    glm_vec2_copy((vec2) { -10, 10 }, bounds[0].a);
+    glm_vec2_copy((vec2) { -20, 10 }, bounds[0].a);
     glm_vec2_copy((vec2) { 1, 0 }, bounds[0].b);
 
-    glm_vec2_copy((vec2) { 10, -10 }, bounds[1].a);
+    glm_vec2_copy((vec2) { 20, -10 }, bounds[1].a);
     glm_vec2_copy((vec2) { 0, 1 }, bounds[1].b);
 
-    glm_vec2_copy((vec2) { -10, -10 }, bounds[2].a);
+    glm_vec2_copy((vec2) { -20, -10 }, bounds[2].a);
     glm_vec2_copy((vec2) { 1, 0 }, bounds[2].b);
 
-    glm_vec2_copy((vec2) { -10, -10 }, bounds[3].a);
+    glm_vec2_copy((vec2) { -20, -10 }, bounds[3].a);
     glm_vec2_copy((vec2) { 0, 1 }, bounds[3].b);
 
     Ball ball = { 0 };
     ball.circle = circle1;
-    ball.line = velIndicator;
+    ball.line = NULL;
     ball.time = 0.0f;
-    ball.hitTime = -1.0f;
     glm_vec2_copy((vec2) { 0, 0 }, ball.position);
-    glm_vec2_copy((vec2) { 20, 6 }, ball.velocity);
+    glm_vec2_copy((vec2) { 20, 8 }, ball.velocity);
 
     Interaction interaction;
+    interaction.time = -1;
 
     double startTime = glfwGetTime();
+    double lastFPSUpdate = startTime;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -154,6 +157,15 @@ int main(void)
         double currentSimTime = currentFrameTime - startTime;
         deltaTime = currentFrameTime - lastFrameTime;
         lastFrameTime = currentFrameTime;
+
+        if (lastFPSUpdate + 0.5 < currentFrameTime)
+        {
+            char fpsText[30];
+            snprintf(fpsText, 30, "Viewer | Render: %3.2f ms", deltaTime * 1000.0);
+
+            glfwSetWindowTitle(window, fpsText);
+            lastFPSUpdate += 0.5;
+        }
 
         ProcessInput(window);
 
@@ -181,9 +193,9 @@ int main(void)
 
         int computeHit = 0;
 
-        if (ball.hitTime > 0 && ball.hitTime < currentSimTime)
+        if (interaction.time > 0 && interaction.time < currentSimTime)
         {
-            glm_vec2_muladds(ball.velocity, ball.hitTime - ball.time, ball.position);
+            glm_vec2_muladds(ball.velocity, interaction.time - ball.time, ball.position);
 
             if (interaction.id % 2 == 0) // horizontal lines, reflect vertical
             {
@@ -194,16 +206,15 @@ int main(void)
                 glm_vec2_reflect(ball.velocity, (vec2) { 1, 0 }, ball.velocity);
             }
 
-            ball.time = ball.hitTime;
+            ball.time = interaction.time;
             computeHit = 1;
-            printf("Collided, updating...\n");
-            printf("Ball hit time: %f\n", ball.hitTime);
-            printf("Sim time: %f\n", currentSimTime);
+            //printf("Ball hit: %.4f s | Sim time: %.4f s | Diff %f s\n",
+            //    interaction.time, currentSimTime, currentSimTime - interaction.time);
         }
 
-        if (ball.hitTime < 0 || computeHit)
+        if (interaction.time < 0 || computeHit)
         {
-            float minTime = 999;
+            float minTime = FLT_MAX;
 
             vec2 times;
 
@@ -218,44 +229,25 @@ int main(void)
                     times);
 
                 if (!collided) continue;
+                if (times[0] < 0) continue; // discard collision in past
 
-                float potentialTime = 999;
+                // current interaction is more in the future than some
+                // other hit time. also discard
+                if (minTime <= times[0]) continue;
 
-                if (times[1] < 0) continue; // both times are less than 0, no collision
-                if (times[0] < 0)
-                {
-                    potentialTime = times[1]; // first time is < 0, use second time
-                }
-                else
-                {
-                    potentialTime = times[0]; // both times positive, use first time
-                }
-                if (potentialTime < minTime)
-                {
-                    minTime = potentialTime;
-                    interaction.id = i;
-                    interaction.time = minTime;
-                }
+                // new closest hit time found
+                minTime = times[0];
+                interaction.id = i;
             }
 
-            minTime += ball.time - 0.00001f;
-
-            glm_vec2_copy(ball.position, ghostCircle->position);
-            glm_vec2_muladds(ball.velocity, minTime - ball.time, ghostCircle->position);
-            ball.hitTime = minTime;
-            printf("Computed min time: %f\n", minTime);
+            // convert local time (relative to ball time) to
+            // global time (relative to start of sim)
+            minTime += ball.time; 
+            interaction.time = minTime;
+            //printf("Computed min time: %f\n", minTime);
         }
 
         UpdateBall(&ball, currentSimTime);
-
-        // if (collided)
-        // {
-        //     LogVec2(times);
-        // }
-        // else
-        // {
-        //     printf("No collision\n");
-        // }
 
         PolygonRenderPolygons();
         InputReset();

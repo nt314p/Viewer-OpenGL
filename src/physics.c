@@ -13,12 +13,25 @@ void glm_vec2_ortho_decomp(vec2 a, vec2 b, vec2 dest)
 // Computes the reflection of incident vector `v` about normal `n`
 // Requires that `n` is a unit vector
 // Equivalent to `dest = v - 2 * dot(v, n) * n`
-void glm_vec2_reflect(vec2 v, vec2 n, vec2 dest)
+void glm_vec2_reflect(vec2 v, vec2 n, vec2 dest) // TODO: in place version?
 {
     glm_vec2_copy(v, dest);
     float dot = glm_vec2_dot(v, n);
     glm_vec2_muladds(n, -2 * dot, dest);
 }
+
+// Computes the reflection of incident vector `v` about the normal
+// defined by the x axis (`axis` = 0) or y axis (`axis` = 1)
+void glm_vec2_reflect_axis(vec2 v, int axis, vec2 dest) // TODO: in place version?
+{
+    glm_vec2_copy(v, dest);
+
+    axis = axis == 1 ? 1 : -1; // y -> axis = 1; x -> axis = -1
+
+    dest[0] *= -axis; // reflects acros y if axis = 1 (y)
+    dest[1] *= axis; // reflects across x if axis = -1 (x)
+}
+
 
 // Computes the unit normal of vector `v`
 // Equivalent to `dest = (v.y, -v.x) / len(v)`
@@ -59,20 +72,24 @@ bool CircleCircleCollisionTime(vec2 p1, vec2 v1, float r1, vec2 p2, vec2 v2, flo
     return true;
 }
 
-// Computes the collision time(s), if any, between a circle with radius r, position pc, and velocity vel,
-// and a line with position pl and normalized direction d
-// Returns true if any collision occured - collision times are placed in the `times` parameter
-// TODO: write simplified methods for horizontal or vertical lines
-bool CircleLineCollisionTime(vec2 pc, vec2 vel, float r, vec2 pl, vec2 d, vec2 times)
+/**
+ * @brief Computes the collision time(s), if any, between a moving circle and a line.
+ * Line direction `dir` must be normalized.
+ * @param `times` Collision times are placed in this parameter. Only valid if the
+ * function return `true`.
+ * @returns `true` if any collision occured (even collisions in the past)
+ */
+bool CircleLineCollisionTime(vec2 pCircle, vec2 velocity, float radius, vec2 pLine, vec2 dir,
+    vec2 times)
 {
-    vec2 dp, pPerp, vPerp;
-    glm_vec2_sub(pl, pc, dp);
-    glm_vec2_ortho_decomp(dp, d, pPerp);
-    glm_vec2_ortho_decomp(vel, d, vPerp);
+    vec2 dp, pPerp, vPerp; // TODO: write simplified methods for horizontal or vertical lines
+    glm_vec2_sub(pLine, pCircle, dp);
+    glm_vec2_ortho_decomp(dp, dir, pPerp);
+    glm_vec2_ortho_decomp(velocity, dir, vPerp);
 
     float a = glm_vec2_dot(vPerp, vPerp);
     float b = -2 * glm_vec2_dot(pPerp, vPerp);
-    float c = glm_vec2_dot(pPerp, pPerp) - r * r;
+    float c = glm_vec2_dot(pPerp, pPerp) - radius * radius;
 
     float discriminant = b * b - 4 * a * c;
     if (discriminant < 0) return false;
