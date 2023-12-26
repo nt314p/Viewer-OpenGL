@@ -3,7 +3,7 @@
 // Computes the orthogonal decomposition of vector `a` with respect to vector `b`
 // Requires that vector `b` is a unit vector
 // Equivalent to `dest = a - dot(a, b) * b`
-void glm_vec2_ortho_decomp(vec2 a, vec2 b, vec2 dest)
+inline void glm_vec2_ortho_decomp(vec2 a, vec2 b, vec2 dest)
 {
     glm_vec2_copy(a, dest);
     float dot = glm_vec2_dot(a, b);
@@ -32,7 +32,6 @@ void glm_vec2_reflect_axis(vec2 v, int axis, vec2 dest) // TODO: in place versio
     dest[1] *= axis; // reflects across x if axis = -1 (x)
 }
 
-
 // Computes the unit normal of vector `v`
 // Equivalent to `dest = (v.y, -v.x) / len(v)`
 void glm_vec2_normal(vec2 v, vec2 dest)
@@ -43,8 +42,13 @@ void glm_vec2_normal(vec2 v, vec2 dest)
     dest[1] = -tempX;
 }
 
-// Computes the collision time(s), if any, between two circles with position p, velocity v, and radius r
-// Returns true if any collision occured - collision times are placed in the `times` parameter
+/**
+ * @brief Computes the collision time(s), if any, between two circles with position p, 
+ * velocity v, and radius r
+ * @param[out] times Collision times are stored in this parameter. Only valid if the function
+ * returns `true`
+ * @returns `true` if any collision occured
+ */
 bool CircleCircleCollisionTime(vec2 p1, vec2 v1, float r1, vec2 p2, vec2 v2, float r2,
     vec2 times)
 {
@@ -75,8 +79,8 @@ bool CircleCircleCollisionTime(vec2 p1, vec2 v1, float r1, vec2 p2, vec2 v2, flo
 /**
  * @brief Computes the collision time(s), if any, between a moving circle and a line.
  * Line direction `dir` must be normalized.
- * @param `times` Collision times are placed in this parameter. Only valid if the
- * function return `true`.
+ * @param[out] times Collision times are stored in this parameter. Only valid if the
+ * function returns `true`.
  * @returns `true` if any collision occured (even collisions in the past)
  */
 bool CircleLineCollisionTime(vec2 pCircle, vec2 velocity, float radius, vec2 pLine, vec2 dir,
