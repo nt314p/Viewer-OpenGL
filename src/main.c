@@ -18,7 +18,7 @@
 #include "color.h"
 #include "physics.h"
 
-#define NUM_BALLS 2
+#define NUM_BALLS 5
 
 static const int WIDTH = 1280;
 static const int HEIGHT = 720;
@@ -28,7 +28,7 @@ static void ProcessInput(GLFWwindow* window);
 static double deltaTime;
 static double lastFrameTime;
 
-static float zoom = 10.0f;
+static float zoom = 12.0f;
 
 static int paused = 0;
 
@@ -80,10 +80,10 @@ Circle B still thinks it will hit the wall, but circle A bounces
 
 */
 
-static void UpdateBallCollisions(int ballIndex, Ball* balls, Interaction* interactions, Line* bounds)
+// Returns the index of the object that the ball at `ballIndex` will now collide with
+static int UpdateBallCollisions(int ballIndex, Ball* balls, Interaction* interactions, Line* bounds)
 {
     float minTime = FLT_MAX;
-
     vec2 times;
 
     // Line collisions
@@ -147,8 +147,39 @@ static void UpdateBallCollisions(int ballIndex, Ball* balls, Interaction* intera
     // global time (relative to start of sim)
     minTime += balls[ballIndex].time;
     interactions[ballIndex].time = minTime;
-    printf("Circle id: %d | Computed min time: %f\n", ballIndex, minTime);
-    printf("Id of collider: %d\n", interactions[ballIndex].id);
+
+    printf("%d -> %d at %f\n", ballIndex, interactions[ballIndex].id - 4, minTime);
+
+    int otherOtherBallIndex = -1;
+
+    if (interactions[ballIndex].id >= 4) // hit other ball
+    {
+        int otherBallIndex = interactions[ballIndex].id - 4;
+
+        if (interactions[otherBallIndex].time > interactions[ballIndex].time)
+        {
+            //interactions[otherBallIndex].time = -1;
+            // Update the other ball's interaction state
+            // interactions[otherBallIndex].time = interactions[ballIndex].time;
+            // interactions[otherBallIndex].id = ballIndex + 4;
+
+            // otherOtherBallIndex = interactions[otherBallIndex].id;
+            // if (otherOtherBallIndex < 4)
+            // {
+            //     otherOtherBallIndex = -1; // hit wall not ball
+            // }
+            // else
+            // {
+            //     interactions[otherOtherBallIndex].time = -1;
+            // }
+            // Other ball
+            //printf("Correction: ");
+        }
+    }
+
+    if (otherOtherBallIndex == -1) return;
+
+    //UpdateBallCollisions(otherOtherBallIndex - 4, balls, interactions, bounds);
 }
 
 // TODO: is this uniformly distributed?
@@ -337,8 +368,8 @@ int main(void)
             {
                 otherBallIndex = interactions[ballIndex].id - 4;
 
-                LogVec2(balls[ballIndex].position);
-                LogVec2(balls[otherBallIndex].position);
+                // LogVec2(balls[ballIndex].position);
+                // LogVec2(balls[otherBallIndex].position);
 
                 glm_vec2_sub(balls[ballIndex].position, balls[otherBallIndex].position,
                     normal); // compute line segment between two circles
@@ -348,7 +379,8 @@ int main(void)
                     normal); // normalize normal
 
                 float length = glm_vec2_norm(normal);
-                printf("Normal length: %f\n", length);
+                // if (fabs(length - 1.0f) > 0.001f) printf("Normal length error! ");
+                // printf("Normal length: %f\n", length);
                 //paused = 1;
             }
 
