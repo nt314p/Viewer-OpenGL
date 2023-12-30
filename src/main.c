@@ -18,7 +18,7 @@
 #include "color.h"
 #include "physics.h"
 
-#define NUM_BALLS 5
+#define NUM_BALLS 3
 
 static const int WIDTH = 1280;
 static const int HEIGHT = 720;
@@ -42,7 +42,7 @@ struct Ball
     float time; // the ball was at position `position` at time `time`
 } typedef Ball;
 
-// TODO: interaction param is only needed for ghost effect,
+// TODO: hit param is only needed for ghost effect,
 // can remove later.
 static void UpdateBall(Ball* ball, float time, float hitTime)
 {
@@ -148,38 +148,9 @@ static int UpdateBallCollisions(int ballIndex, Ball* balls, Interaction* interac
     minTime += balls[ballIndex].time;
     interactions[ballIndex].time = minTime;
 
+    return interactions[ballIndex].id;
+
     printf("%d -> %d at %f\n", ballIndex, interactions[ballIndex].id - 4, minTime);
-
-    int otherOtherBallIndex = -1;
-
-    if (interactions[ballIndex].id >= 4) // hit other ball
-    {
-        int otherBallIndex = interactions[ballIndex].id - 4;
-
-        if (interactions[otherBallIndex].time > interactions[ballIndex].time)
-        {
-            //interactions[otherBallIndex].time = -1;
-            // Update the other ball's interaction state
-            // interactions[otherBallIndex].time = interactions[ballIndex].time;
-            // interactions[otherBallIndex].id = ballIndex + 4;
-
-            // otherOtherBallIndex = interactions[otherBallIndex].id;
-            // if (otherOtherBallIndex < 4)
-            // {
-            //     otherOtherBallIndex = -1; // hit wall not ball
-            // }
-            // else
-            // {
-            //     interactions[otherOtherBallIndex].time = -1;
-            // }
-            // Other ball
-            //printf("Correction: ");
-        }
-    }
-
-    if (otherOtherBallIndex == -1) return;
-
-    //UpdateBallCollisions(otherOtherBallIndex - 4, balls, interactions, bounds);
 }
 
 // TODO: is this uniformly distributed?
@@ -221,6 +192,8 @@ static GLFWwindow* InitializeWindow(int width, int height, int isFullscreen)
 
     return window;
 }
+
+double currentSimTime;
 
 int main(void)
 {
@@ -281,6 +254,7 @@ int main(void)
     }
 
     double startTime = glfwGetTime();
+    currentSimTime = startTime;
     double lastFPSUpdate = startTime;
 
     for (int ballIndex = 0; ballIndex < NUM_BALLS; ballIndex++)
@@ -292,7 +266,7 @@ int main(void)
     while (!glfwWindowShouldClose(window))
     {
         double currentFrameTime = glfwGetTime();
-        double currentSimTime = currentFrameTime - startTime;
+        currentSimTime = currentFrameTime - startTime;
         deltaTime = currentFrameTime - lastFrameTime;
         lastFrameTime = currentFrameTime;
 
@@ -379,8 +353,11 @@ int main(void)
                     normal); // normalize normal
 
                 float length = glm_vec2_norm(normal);
-                // if (fabs(length - 1.0f) > 0.001f) printf("Normal length error! ");
-                // printf("Normal length: %f\n", length);
+                if (fabs(length - 1.0f) > 0.001f) printf("Normal length error! ");
+                printf("Normal length: %f\n", length);
+                // Normal length error means that the balls aren't actually next to
+                // each other when the collision processing is triggered.
+                // This indicates an error with the collision algorithm.
                 //paused = 1;
             }
 
@@ -390,10 +367,29 @@ int main(void)
         // Pass 3: Update ball collision time and next collision state
         for (int ballIndex = 0; ballIndex < NUM_BALLS; ballIndex++)
         {
-            if (interactions[ballIndex].time > currentSimTime) continue;
-            balls[ballIndex].time = interactions[ballIndex].time;
+            float interactionTime = interactions[ballIndex].time;
+            if (interactionTime > currentSimTime) continue;
+            balls[ballIndex].time = interactionTime;
 
-            UpdateBallCollisions(ballIndex, balls, interactions, bounds);
+            int collidedIndex = UpdateBallCollisions(ballIndex, balls, interactions, bounds);
+            //printf("Ball %d to collide at %f\n", ballIndex, interactionTime);
+            if (collidedIndex < 4) continue;
+
+            // is a ball
+            int collidedBallIndex = collidedIndex - 4;
+            float newInteractionTime = interactions[ballIndex].time;
+            
+            // check the other ball if it has a later collision time
+            // if so, we will collide with this ball before it hits its
+            // other target. update the time state accordingly
+            if (interactions[collidedBallIndex].time > newInteractionTime)
+            {
+                //printf("Updated ball\n");
+                //printf("Prev: %f; ", interactions[collidedBallIndex].time);
+                interactions[collidedBallIndex].time = newInteractionTime;
+                interactions[collidedBallIndex].id = ballIndex + 4;
+                //printf("Updated to: %f\n", newInteractionTime);
+            }
         }
 
         // Pass 4: Update all balls
@@ -418,7 +414,7 @@ int main(void)
     return 0;
 }
 
-void ProcessInput(GLFWwindow* window)
+static void ProcessInput(GLFWwindow* window)
 {
     float speed = zoom / 2.0f;
     vec3 movement = { 0.0f };
@@ -428,6 +424,12 @@ void ProcessInput(GLFWwindow* window)
     if (InputKeyPressed(window, GLFW_KEY_ESCAPE))
     {
         glfwSetWindowShouldClose(window, 1);
+    }
+
+    if (InputKeyPressed(window, GLFW_KEY_SPACE))
+    {
+        currentSimTime += deltaTime * 0.5f;
+        printf("time: %f\n", currentSimTime);
     }
 
     glm_vec3_scale(movement, deltaTime * speed, movement);

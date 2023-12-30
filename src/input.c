@@ -93,3 +93,8 @@ int InputKeyPressed(GLFWwindow* window, int key)
 {
     return glfwGetKey(window, key) == GLFW_PRESS;
 }
+
+int InputKeyDown(GLFWwindow* window, int key)
+{
+    return glfwGetKey(window, key) == GLFW_KEY_DOWN;
+}

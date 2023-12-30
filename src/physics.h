@@ -4,7 +4,7 @@
 typedef struct Interaction
 {
     uint32_t id; // the id of the body the object is interacting with
-    float time; // time of hit
+    float time; // time of hit, global time
 } Interaction;
 
 void glm_vec2_ortho_decomp(vec2 a, vec2 b, vec2 dest);
