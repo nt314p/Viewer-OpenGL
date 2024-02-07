@@ -70,8 +70,8 @@ bool CircleCircleCollisionTime(vec2 p1, vec2 v1, float r1, vec2 p2, vec2 v2, flo
     float v = sqrtf(discriminant) / a2;
     float u = -b / a2;
 
-    times[0] = u - v; // TODO: check for negative collision times
-    times[1] = u + v;
+    times[0] = u - v; 
+    times[1] = u + v; // TODO: we actually never care about the exit time, discard?
 
     return true;
 }
@@ -102,8 +102,8 @@ bool CircleLineCollisionTime(vec2 pCircle, vec2 velocity, float radius, vec2 pLi
     float v = sqrtf(discriminant) / a2;
     float u = -b / a2;
 
-    times[0] = u - v; // TODO: check for negative collision times
-    times[1] = u + v;
+    times[0] = u - v; 
+    times[1] = u + v; // TODO: we actually never care about the exit time, discard?
 
     return true;
 }

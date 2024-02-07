@@ -81,11 +81,18 @@ Circle B still thinks it will hit the wall, but circle A bounces
 
 */
 
-// Returns the index of the object that the ball at `ballIndex` will now collide with
+
+
+// Returns the index of the object that the ball at `ballIndex` will 
+// now collide with the soonest
 static int UpdateBallCollisions(int ballIndex, Ball* balls, Interaction* interactions, Line* bounds)
 {
     float minTime = FLT_MAX;
     vec2 times;
+
+    // We divide the collision checking into two stages:
+    // 1. Line check (static)
+    // 2. Ball check (dynamic)
 
     // Line collisions
     for (int boundIndex = 0; boundIndex < 4; boundIndex++)
@@ -120,8 +127,8 @@ static int UpdateBallCollisions(int ballIndex, Ball* balls, Interaction* interac
         // Move other ball to the position it would have been in
         // at the current ball's local time
         glm_vec2_copy(balls[otherBallIndex].position, otherBallPos);
-        float diff = balls[ballIndex].time - balls[otherBallIndex].time;
-        glm_vec2_muladds(balls[otherBallIndex].velocity, diff, otherBallPos);
+        float diffTime = balls[ballIndex].time - balls[otherBallIndex].time;
+        glm_vec2_muladds(balls[otherBallIndex].velocity, diffTime, otherBallPos);
 
         bool collided = CircleCircleCollisionTime(
             balls[ballIndex].position,
@@ -359,7 +366,8 @@ int main(void)
                 int otherBallIndex = -1;
 
                 if (interactions[ballIndex].id < 4)
-                {
+                {   
+                    // TODO: implement actual line reflection algorithm
                     if (interactions[ballIndex].id % 2 == 0) // horizontal lines, reflect vertical
                     {
                         normal[0] = 0;

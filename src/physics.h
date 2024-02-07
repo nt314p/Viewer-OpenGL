@@ -3,6 +3,7 @@
 
 typedef struct Interaction
 {
+    uint32_t this; // the id of the own body
     uint32_t id; // the id of the body the object is interacting with
     float time; // time of hit, global time
 } Interaction;
