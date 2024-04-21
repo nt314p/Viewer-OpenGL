@@ -19,7 +19,7 @@
 #include "physics.h"
 #include "priority_queue.h"
 
-#define NUM_BALLS 3
+#define NUM_BALLS 4
 
 static const int WIDTH = 1280;
 static const int HEIGHT = 720;
@@ -30,6 +30,7 @@ static double deltaTime;
 static double lastFrameTime;
 
 static float zoom = 12.0f;
+static float timeFactor = 1.0f;
 
 static int paused = 0;
 
@@ -288,15 +289,6 @@ int main(void)
     currentSimTime = startTime;
     double lastFPSUpdate = startTime;
 
-    PriorityQueue pq;
-    int a[10] = {60, 55, 12, 64, 23, 20, 49, 94, 43, 48};
-    PriorityQueueHeapify(&pq, a, 10, 10);
-
-    while(pq.size > 0)
-    {
-        printf("%d\n", PriorityQueuePop(&pq));
-    }
-
     while (!glfwWindowShouldClose(window))
     {
         double currentFrameTime = glfwGetTime();
@@ -339,7 +331,7 @@ int main(void)
         // probably find the soonest collision and process first
         for (int i = 0; i < 10; i++)
         {
-            currentSimTime += deltaTime / 10.0f;
+            if (!paused) currentSimTime += deltaTime / 10.0f * timeFactor;
             // Pass 1: check if balls have reached their collision time ->
             // then move them to their exact collision point
             for (int ballIndex = 0; ballIndex < NUM_BALLS; ballIndex++)
@@ -475,12 +467,17 @@ static void ProcessInput(GLFWwindow* window)
 
     if (InputKeyPressed(window, GLFW_KEY_COMMA))
     {
-        currentSimTime += deltaTime * 0.5f;
+        currentSimTime -= deltaTime * 0.4f;
     }
 
     if (InputKeyPressed(window, GLFW_KEY_PERIOD))
     {
-        currentSimTime += deltaTime * 2;
+        currentSimTime += deltaTime * 3;
+    }
+
+    if (InputKeyPressed(window, GLFW_KEY_SPACE))
+    {
+        paused = !paused;
     }
 
     glm_vec3_scale(movement, deltaTime * speed, movement);
