@@ -16,6 +16,7 @@ static const char* LineVertShaderPath = "shaders/InstancedLine.vert";
 
 static vec2 UnitCircleVertices[CircleVertexCount + 2];
 static VertexBuffer UnitCircleVertexBuffer;
+static IndexBuffer UnitCircleIndexBuffer;
 static unsigned int UnitCircleVertexArrayId;
 
 static vec2 UnitSquareVertices[4];
@@ -47,13 +48,56 @@ static unsigned int circleShaderId;
 static unsigned int lineShaderId;
 static unsigned int rectShaderId;
 
+#define MaxLevel 4
+#define CircleVertices (3 * (1 << MaxLevel))
+#define CircleTriangles (3 * ((1 << MaxLevel) - 1) + 1)
+
 // TODO: Specialized triangulation for circles?
 // https://www.humus.name/index.php?page=News&ID=228
 static void InitializeUnitCircle()
 {
+    vec2 vertices[CircleVertices];
+
+    // Generate the 48 vertices
+    for (int i = 0; i < CircleVertices; i++)
+    {
+        float angle = (2 * M_PI / CircleVertices) * i;
+
+        vertices[i][0] = cosf(angle);
+        vertices[i][1] = sinf(angle);
+    }
+
+    printf("CircleVertices: %d\n", CircleVertices);
+    printf("CircleTriangles: %d\n", CircleTriangles);
+
+    vec2* vertexData = malloc(sizeof(vec2) * CircleTriangles * 3);
+    int globalIndex = 0;
+    // render n = 4 levels
+    // vertex count = 3 * 2^n = 3 * 2^4 = 48
+    for (int n = 0; n <= MaxLevel; n++) {
+        int triangleCount = n == 0 ? 1 : 3 * (1 << (n - 1));
+        int stride = 1 << (MaxLevel - n);
+        printf("triangleCount: %d\n", triangleCount);
+        printf("stride: %d\n", stride);
+
+        for (int i = 0; i < triangleCount; i++)
+        {
+            int vertexIndex = i * stride * 2;
+
+            glm_vec2_copy(vertices[vertexIndex], vertexData[globalIndex]);
+            glm_vec2_copy(vertices[vertexIndex + stride], vertexData[globalIndex + 1]);
+            glm_vec2_copy(vertices[(vertexIndex + 2 * stride) % CircleVertices], vertexData[globalIndex + 2]);
+
+            printf("%d, %d, %d\n", vertexIndex, vertexIndex + stride, (vertexIndex + 2 * stride) % CircleVertices);
+            globalIndex += 3;
+        }
+    }
+
+
     // Add two vertices. One for the center and the other for the final vertex
     // that must overlap with the first vertex on the circle
 
+    /*
     for (int i = 0; i <= CircleVertexCount; i++)
     {
         int index = i + 1;
@@ -61,15 +105,16 @@ static void InitializeUnitCircle()
 
         UnitCircleVertices[index][0] = cosf(angle);
         UnitCircleVertices[index][1] = sinf(angle);
-    }
+    }*/
 
     VertexArrayInitialize(&UnitCircleVertexArrayId);
     VertexArrayBind(UnitCircleVertexArrayId);
 
-    VertexBufferInitialize(&UnitCircleVertexBuffer, UnitCircleVertices, sizeof(UnitCircleVertices));
+    VertexBufferInitialize(&UnitCircleVertexBuffer, vertexData, sizeof(vec2) * CircleTriangles * 3);
     VertexAttribPointerFloats(0, 2);
 
     VertexArrayUnbind();
+    free(vertexData);
 }
 
 // Initializes a unit square (side length one) centered at the origin
@@ -169,7 +214,7 @@ Line* PolygonLine(vec2 a, vec2 b, vec3 color)
     glm_vec2_sub(b, a, l->b);
     float length = glm_vec2_norm(l->b);
     l->length = length;
-    
+
     l->b[0] /= length;
     l->b[1] /= length;
 
@@ -190,7 +235,7 @@ static void DrawCircles()
     UniformBufferUpdateRange(&circlesBuffer, 0, sizeof(Circle) * numCircles);
     ShaderUse(circleShaderId);
     VertexArrayBind(UnitCircleVertexArrayId);
-    GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, CircleVertexCount + 2, numCircles));
+    GLCall(glDrawArraysInstanced(GL_TRIANGLES, 0, CircleTriangles * 3, numCircles));
 }
 
 static void DrawRects()

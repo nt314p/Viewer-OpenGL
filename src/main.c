@@ -19,7 +19,7 @@
 #include "physics.h"
 #include "priority_queue.h"
 
-#define NUM_BALLS 4
+#define NUM_BALLS 3
 
 static const int WIDTH = 1280;
 static const int HEIGHT = 720;
@@ -285,6 +285,15 @@ int main(void)
         UpdateBallCollisions(ballIndex, balls, interactions, bounds);
     }
 
+    PriorityQueue pq;
+    Interaction inact[10];
+    PriorityQueueCreate(&pq, inact, 10);
+
+    for (int i = 0; i < NUM_BALLS; i++) 
+    {
+        PriorityQueuePush(&pq, interactions[i]);
+    }
+
     double startTime = glfwGetTime();
     currentSimTime = startTime;
     double lastFPSUpdate = startTime;
@@ -325,6 +334,13 @@ int main(void)
 
         vec3 worldMouseCoords;
         CameraViewToWorldPoint(mouseCoords, worldMouseCoords);
+
+        if (PriorityQueuePeek(&pq).time <= currentSimTime)
+        {
+            Interaction i = PriorityQueuePop(&pq);
+
+            
+        }
 
         // TODO: somehow decrementing the sim timestep makes the simulation more accurate
         // possibly multiple collision updates on the same frame? out of order effects?
