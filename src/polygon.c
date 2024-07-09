@@ -5,7 +5,12 @@
 #include "renderer.h"
 #include "debug.h"
 
-#define CircleVertexCount 50
+// The maximum depth used for the circle generation algorithm
+// A higher level yields a better circle approximation
+// See https://www.humus.name/index.php?page=News&ID=228
+#define MaxCircleGenLevel 4 
+#define CircleVertexCount (3 * (1 << MaxCircleGenLevel))
+#define CircleTriangles (3 * ((1 << MaxCircleGenLevel) - 1) + 1)
 static const int VerticesPerLine = 2;
 static const int VerticesPerRect = 4;
 
@@ -14,14 +19,13 @@ static const char* RectVertShaderPath = "shaders/InstancedRect.vert";
 static const char* CircleVertShaderPath = "shaders/InstancedCircle.vert";
 static const char* LineVertShaderPath = "shaders/InstancedLine.vert";
 
-static vec2 UnitCircleVertices[CircleVertexCount + 2];
-static VertexBuffer UnitCircleVertexBuffer;
-static IndexBuffer UnitCircleIndexBuffer;
-static unsigned int UnitCircleVertexArrayId;
+static VertexArray UnitCircleVertexArray; 
+// static VertexBuffer UnitCircleVertexBuffer;
+// static unsigned int UnitCircleVertexArrayId;
 
 static vec2 UnitSquareVertices[4];
-static VertexBuffer UnitSquareVertexBuffer;
-static unsigned int UnitSquareVertexArrayId;
+//static VertexBuffer UnitSquareVertexBuffer;
+static VertexArray UnitSquareVertexArray;
 
 static bool IsInitialized = false;
 
@@ -48,73 +52,56 @@ static unsigned int circleShaderId;
 static unsigned int lineShaderId;
 static unsigned int rectShaderId;
 
-#define MaxLevel 4
-#define CircleVertices (3 * (1 << MaxLevel))
-#define CircleTriangles (3 * ((1 << MaxLevel) - 1) + 1)
-
-// TODO: Specialized triangulation for circles?
-// https://www.humus.name/index.php?page=News&ID=228
 static void InitializeUnitCircle()
 {
-    vec2 vertices[CircleVertices];
+    vec2 vertLookup[CircleVertexCount];
 
-    // Generate the 48 vertices
-    for (int i = 0; i < CircleVertices; i++)
+    for (int i = 0; i < CircleVertexCount; i++)
     {
-        float angle = (2 * M_PI / CircleVertices) * i;
+        float angle = (2 * M_PI / CircleVertexCount) * i;
 
-        vertices[i][0] = cosf(angle);
-        vertices[i][1] = sinf(angle);
+        vertLookup[i][0] = cosf(angle);
+        vertLookup[i][1] = sinf(angle);
     }
 
-    printf("CircleVertices: %d\n", CircleVertices);
-    printf("CircleTriangles: %d\n", CircleTriangles);
+    // printf("CircleVertexCount: %d\n", CircleVertexCount);
+    // printf("CircleTriangles: %d\n", CircleTriangles);
 
-    vec2* vertexData = malloc(sizeof(vec2) * CircleTriangles * 3);
+    vec2* vertData = malloc(sizeof(vec2) * CircleTriangles * 3);
     int globalIndex = 0;
+
     // render n = 4 levels
     // vertex count = 3 * 2^n = 3 * 2^4 = 48
-    for (int n = 0; n <= MaxLevel; n++) {
+
+    for (int n = 0; n <= MaxCircleGenLevel; n++) {
         int triangleCount = n == 0 ? 1 : 3 * (1 << (n - 1));
-        int stride = 1 << (MaxLevel - n);
-        printf("triangleCount: %d\n", triangleCount);
-        printf("stride: %d\n", stride);
+        int stride = 1 << (MaxCircleGenLevel - n);
+        // printf("triangleCount: %d\n", triangleCount);
+        // printf("stride: %d\n", stride);
 
         for (int i = 0; i < triangleCount; i++)
         {
-            int vertexIndex = i * stride * 2;
+            int vIndex = i * stride * 2; // base vertex index in lookup
 
-            glm_vec2_copy(vertices[vertexIndex], vertexData[globalIndex]);
-            glm_vec2_copy(vertices[vertexIndex + stride], vertexData[globalIndex + 1]);
-            glm_vec2_copy(vertices[(vertexIndex + 2 * stride) % CircleVertices], vertexData[globalIndex + 2]);
+            glm_vec2_copy(vertLookup[vIndex], vertData[globalIndex]);
+            glm_vec2_copy(vertLookup[vIndex + stride], vertData[globalIndex + 1]);
+            glm_vec2_copy(vertLookup[(vIndex + 2 * stride) % CircleVertexCount], vertData[globalIndex + 2]);
 
-            printf("%d, %d, %d\n", vertexIndex, vertexIndex + stride, (vertexIndex + 2 * stride) % CircleVertices);
+            // printf("%d, %d, %d\n", vertexIndex, vertexIndex + stride, (vertexIndex + 2 * stride) % CircleVertexCount);
             globalIndex += 3;
         }
     }
 
+    VertexArrayInitialize(&UnitCircleVertexArray);
+    VertexArrayBind(&UnitCircleVertexArray);
 
-    // Add two vertices. One for the center and the other for the final vertex
-    // that must overlap with the first vertex on the circle
+    VertexBufferInitialize(&UnitCircleVertexArray, vertData, 
+        sizeof(vec2) * CircleTriangles * 3, GL_STATIC_DRAW);
 
-    /*
-    for (int i = 0; i <= CircleVertexCount; i++)
-    {
-        int index = i + 1;
-        float angle = (2 * M_PI / CircleVertexCount) * i;
-
-        UnitCircleVertices[index][0] = cosf(angle);
-        UnitCircleVertices[index][1] = sinf(angle);
-    }*/
-
-    VertexArrayInitialize(&UnitCircleVertexArrayId);
-    VertexArrayBind(UnitCircleVertexArrayId);
-
-    VertexBufferInitialize(&UnitCircleVertexBuffer, vertexData, sizeof(vec2) * CircleTriangles * 3);
     VertexAttribPointerFloats(0, 2);
 
     VertexArrayUnbind();
-    free(vertexData);
+    free(vertData);
 }
 
 // Initializes a unit square (side length one) centered at the origin
@@ -125,10 +112,12 @@ static void InitializeUnitSquare()
     glm_vec2_copy((vec2) { -0.5f, -0.5f }, UnitSquareVertices[2]);
     glm_vec2_copy((vec2) { 0.5f, -0.5f }, UnitSquareVertices[3]);
 
-    VertexArrayInitialize(&UnitSquareVertexArrayId);
-    VertexArrayBind(UnitSquareVertexArrayId);
+    VertexArrayInitialize(&UnitSquareVertexArray);
+    VertexArrayBind(&UnitSquareVertexArray);
 
-    VertexBufferInitialize(&UnitSquareVertexBuffer, UnitSquareVertices, sizeof(UnitSquareVertices));
+    VertexBufferInitialize(&UnitSquareVertexArray, UnitSquareVertices, 
+        sizeof(UnitSquareVertices), GL_STATIC_DRAW);
+
     VertexAttribPointerFloats(0, 2);
 
     VertexArrayUnbind();
@@ -234,7 +223,7 @@ static void DrawCircles()
 {
     UniformBufferUpdateRange(&circlesBuffer, 0, sizeof(Circle) * numCircles);
     ShaderUse(circleShaderId);
-    VertexArrayBind(UnitCircleVertexArrayId);
+    VertexArrayBind(&UnitCircleVertexArray);
     GLCall(glDrawArraysInstanced(GL_TRIANGLES, 0, CircleTriangles * 3, numCircles));
 }
 
@@ -242,7 +231,7 @@ static void DrawRects()
 {
     UniformBufferUpdateRange(&rectsBuffer, 0, sizeof(Rect) * numRects);
     ShaderUse(rectShaderId);
-    VertexArrayBind(UnitSquareVertexArrayId);
+    VertexArrayBind(&UnitSquareVertexArray);
     GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, VerticesPerRect, numRects));
 }
 
@@ -250,7 +239,7 @@ static void DrawLines()
 {
     UniformBufferUpdateRange(&linesBuffer, 0, sizeof(Line) * numLines);
     ShaderUse(lineShaderId);
-    VertexArrayBind(UnitSquareVertexArrayId);
+    VertexArrayBind(&UnitSquareVertexArray); // why do we bind unit square for lines??
     GLCall(glDrawArraysInstanced(GL_LINES, 0, VerticesPerLine, numLines));
 }
 

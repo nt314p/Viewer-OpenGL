@@ -3,10 +3,24 @@
 #define GLEW_STATIC
 #include <GL\glew.h>
 
-// TODO: are the data and count fields for vertex and index buffers necessary
-
-typedef struct VertexBuffer
+typedef struct VertexArray
 {
+    unsigned int vertexBufferId;
+    unsigned int vertexBufferSize;
+    void* vertexBufferData;
+
+    unsigned int indexBufferId;
+    unsigned int indexBufferCount; // If zero, the index buffer has not been initialized
+    unsigned int* indexBufferData;
+
+    unsigned int id;
+} VertexArray;
+
+// TODO: are the data and count fields for vertex and index buffers necessary
+/*
+typedef struct VertexBuffer // TODO: add back in the count
+{
+    unsigned int vaoId;
     unsigned int bufferId;
     void* data;
 } VertexBuffer;
@@ -16,7 +30,7 @@ typedef struct IndexBuffer
     unsigned int bufferId;
     unsigned int count; // how many indices are contained in the buffer
     void* data;
-} IndexBuffer;
+} IndexBuffer;*/
 
 typedef struct UniformBuffer
 {
@@ -26,20 +40,28 @@ typedef struct UniformBuffer
     void* data;
 } UniformBuffer;
 
-void VertexArrayInitialize(unsigned int* vertexArrayId);
-void VertexArrayBind(unsigned int vertexArrayId);
+typedef struct StorageBuffer
+{
+    unsigned int bufferId;
+    unsigned int size;
+    unsigned int bindingPoint;
+    void* data;
+} StorageBuffer;
+
+void VertexArrayInitialize(VertexArray* vertexArray);
+void VertexArrayBind(VertexArray* vertexArray);
 void VertexArrayUnbind();
-void VertexArrayDelete(unsigned int vertexArrayId);
+void VertexArrayDelete(VertexArray* vertexArray);
 
-void VertexBufferInitialize(VertexBuffer* vertexBuffer, void* data, unsigned int size);
-void VertexBufferBind(VertexBuffer* vertexBuffer);
+void VertexBufferInitialize(VertexArray* vertexArray, void* data, unsigned int size, GLenum usage);
+void VertexBufferBind(VertexArray* vertexArray);
 void VertexBufferUnbind();
-void VertexBufferDelete(VertexBuffer* vertexBuffer);
+void VertexBufferDelete(VertexArray* vertexArray);
 
-void IndexBufferInitialize(IndexBuffer* indexBuffer, unsigned int* data, unsigned int count);
-void IndexBufferBind(IndexBuffer* indexBuffer);
+void IndexBufferInitialize(VertexArray* vertexArray, unsigned int* data, unsigned int count, GLenum usage);
+void IndexBufferBind(VertexArray* vertexArray);
 void IndexBufferUnbind();
-void IndexBufferDelete(IndexBuffer* indexBuffer);
+void IndexBufferDelete(VertexArray* vertexArray);
 
 void UniformBufferInitialize(UniformBuffer* uniformBuffer, void* data, unsigned int size, GLenum usageHint);
 void UniformBufferUpdate(UniformBuffer* uniformBuffer);

@@ -10,14 +10,15 @@ static unsigned int GetNextUniformBufferBindingPoint()
     return NextUniformBufferBindingPoint++;
 }
 
-void VertexArrayInitialize(unsigned int* vertexArrayId)
+void VertexArrayInitialize(VertexArray* vertexArray)
 {
-    GLCall(glGenVertexArrays(1, vertexArrayId));
+    memset(vertexArray, 0, sizeof(VertexArray));
+    GLCall(glGenVertexArrays(1, &vertexArray->id));
 }
 
-void VertexArrayBind(unsigned int vertexArrayId)
+void VertexArrayBind(VertexArray* vertexArray)
 {
-    GLCall(glBindVertexArray(vertexArrayId));
+    GLCall(glBindVertexArray(vertexArray->id));
 }
 
 void VertexArrayUnbind()
@@ -25,21 +26,25 @@ void VertexArrayUnbind()
     GLCall(glBindVertexArray(0));
 }
 
-void VertexArrayDelete(unsigned int vertexArrayId)
+// Deletes the vertex array but does not alter the associated buffers
+void VertexArrayDelete(VertexArray* vertexArray)
 {
-    GLCall(glDeleteVertexArrays(1, &vertexArrayId));
+    GLCall(glDeleteVertexArrays(1, &vertexArray->id));
 }
 
-void VertexBufferInitialize(VertexBuffer* vertexBuffer, void* data, unsigned int size)
+void VertexBufferInitialize(VertexArray* vertexArray, void* data, unsigned int size, GLenum usage)
 {
-    GLCall(glGenBuffers(1, &vertexBuffer->bufferId));
-    GLCall(glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer->bufferId));
-    GLCall(glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW));
+    unsigned int* vertexBufferId = &vertexArray->vertexBufferId;
+    GLCall(glGenBuffers(1, vertexBufferId));
+    GLCall(glBindBuffer(GL_ARRAY_BUFFER, *vertexBufferId));
+    GLCall(glBufferData(GL_ARRAY_BUFFER, size, data, usage));
+    vertexArray->vertexBufferData = data;
+    vertexArray->vertexBufferSize = size;
 }
 
-void VertexBufferBind(VertexBuffer* vertexBuffer)
+void VertexBufferBind(VertexArray* vertexArray)
 {
-    GLCall(glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer->bufferId));
+    GLCall(glBindBuffer(GL_ARRAY_BUFFER, vertexArray->vertexBufferId));
 }
 
 void VertexBufferUnbind()
@@ -47,22 +52,25 @@ void VertexBufferUnbind()
     GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
 }
 
-void VertexBufferDelete(VertexBuffer* vertexBuffer)
+void VertexBufferDelete(VertexArray* vertexArray)
 {
-    GLCall(glDeleteBuffers(1, &vertexBuffer->bufferId));
+    GLCall(glDeleteBuffers(1, &vertexArray->vertexBufferId));
 }
 
-void IndexBufferInitialize(IndexBuffer* indexBuffer, unsigned int* data, unsigned int count)
+void IndexBufferInitialize(VertexArray* vertexArray, unsigned int* data, unsigned int count, GLenum usage)
 {
-    indexBuffer->count = count;
-    GLCall(glGenBuffers(1, &indexBuffer->bufferId));
-    GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer->bufferId));
-    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), data, GL_STATIC_DRAW));
+    unsigned int* indexBufferId = &vertexArray->indexBufferId;
+    GLCall(glGenBuffers(1, indexBufferId));
+    GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *indexBufferId));
+    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), data, usage));
+    
+    vertexArray->indexBufferData = data;
+    vertexArray->indexBufferCount = count;
 }
 
-void IndexBufferBind(IndexBuffer* indexBuffer)
+void IndexBufferBind(VertexArray* vertexArray)
 {
-    GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer->bufferId));
+    GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertexArray->indexBufferId));
 }
 
 void IndexBufferUnbind()
@@ -70,9 +78,9 @@ void IndexBufferUnbind()
     GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
 }
 
-void IndexBufferDelete(IndexBuffer* indexBuffer)
+void IndexBufferDelete(VertexArray* vertexArray)
 {
-    GLCall(glDeleteBuffers(1, &indexBuffer->bufferId));
+    GLCall(glDeleteBuffers(1, &vertexArray->indexBufferId));
 }
 
 void UniformBufferInitialize(UniformBuffer* uniformBuffer, void* data, unsigned int size, GLenum usageHint)

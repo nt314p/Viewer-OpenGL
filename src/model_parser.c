@@ -28,8 +28,7 @@ int ReadModel(const char* filePath, char* buffer)
     return actualLength;
 }
 
-// VAO must be bound before call
-int ModelToBuffers(const char* filePath, VertexBuffer* vb, IndexBuffer* ib) {
+int ModelToBuffers(const char* filePath, VertexArray* vertexArray) {
     char* buffer = malloc(8 * 1024); // allocate 8K
 
     int modelLength = ReadModel(filePath, buffer);
@@ -47,11 +46,9 @@ int ModelToBuffers(const char* filePath, VertexBuffer* vb, IndexBuffer* ib) {
     ParseModel(buffer, modelLength, vertices, vertexCount, faces, faceCount);
     free(buffer);
 
-    VertexBufferInitialize(vb, vertices, vertexCount * sizeof(vec3));
-    GLCall(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0));
-    GLCall(glEnableVertexAttribArray(0));
-
-    IndexBufferInitialize(ib, faces, faceCount * 3);
+    VertexBufferInitialize(vertexArray, vertices, vertexCount * sizeof(vec3), GL_STATIC_DRAW);
+    VertexAttribPointerFloats(0, 3);
+    IndexBufferInitialize(vertexArray, faces, faceCount * 3, GL_STATIC_DRAW);
     
     return 0;
 }
