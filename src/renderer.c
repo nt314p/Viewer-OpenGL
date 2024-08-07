@@ -38,8 +38,30 @@ void VertexBufferInitialize(VertexArray* vertexArray, void* data, unsigned int s
     GLCall(glGenBuffers(1, vertexBufferId));
     GLCall(glBindBuffer(GL_ARRAY_BUFFER, *vertexBufferId));
     GLCall(glBufferData(GL_ARRAY_BUFFER, size, data, usage));
+
+    // TODO: make an optional init method that marks whether the 
+    // data and size are still valid beyond this call.
+    // For use cases where the vertex buffer is initialized from
+    // temp data.
+
     vertexArray->vertexBufferData = data;
     vertexArray->vertexBufferSize = size;
+}
+
+void VertexBufferUpdate(VertexArray* vertexArray)
+{
+    VertexBufferBind(vertexArray);
+    GLCall(void* mappedBuffer = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY));
+    memcpy(mappedBuffer, vertexArray->vertexBufferData, vertexArray->vertexBufferSize);
+    GLCall(glUnmapBuffer(GL_ARRAY_BUFFER));
+}
+
+void VertexBufferUpdateRange(VertexArray* vertexArray, unsigned int offset, unsigned int size)
+{
+    VertexBufferBind(vertexArray);
+    GLCall(void* mappedBuffer = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY));
+    memcpy(mappedBuffer, (char*)(vertexArray->vertexBufferData) + offset, size);
+    GLCall(glUnmapBuffer(GL_ARRAY_BUFFER));
 }
 
 void VertexBufferBind(VertexArray* vertexArray)
@@ -63,7 +85,7 @@ void IndexBufferInitialize(VertexArray* vertexArray, unsigned int* data, unsigne
     GLCall(glGenBuffers(1, indexBufferId));
     GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *indexBufferId));
     GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), data, usage));
-    
+
     vertexArray->indexBufferData = data;
     vertexArray->indexBufferCount = count;
 }

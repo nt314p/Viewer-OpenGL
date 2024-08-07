@@ -1,4 +1,6 @@
 #pragma once
+// TODO: better name for this file
+// will eventually hold all primitive shapes (1d, 2d, 3d)
 
 #include <cglm\cglm.h>
 
@@ -28,6 +30,14 @@ typedef struct Line
     vec2 b;
 } Line;
 
+typedef struct Point
+{
+    vec3 position;
+    float pointSize;
+    vec3 color;
+    float padding;
+} Point;
+
 // Initializes polygons; must be called before other functions
 void PolygonInitialize();
 
@@ -49,5 +59,11 @@ Line* PolygonLine(vec2 a, vec2 b, vec3 color);
 // Allocates `count` contiguous lines and returns a pointer
 Line* PolygonLines(unsigned int count);
 
+// TODO: methods for getting point objects
+
+
+// Updates the view-perspective matrix used to transform polygons
 void PolygonUpdateViewPerspectiveMatrix(mat4 vpMatrix);
+
+// Renders polygons
 void PolygonRenderPolygons();

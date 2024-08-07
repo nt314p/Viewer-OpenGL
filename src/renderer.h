@@ -16,22 +16,6 @@ typedef struct VertexArray
     unsigned int id;
 } VertexArray;
 
-// TODO: are the data and count fields for vertex and index buffers necessary
-/*
-typedef struct VertexBuffer // TODO: add back in the count
-{
-    unsigned int vaoId;
-    unsigned int bufferId;
-    void* data;
-} VertexBuffer;
-
-typedef struct IndexBuffer
-{
-    unsigned int bufferId;
-    unsigned int count; // how many indices are contained in the buffer
-    void* data;
-} IndexBuffer;*/
-
 typedef struct UniformBuffer
 {
     unsigned int bufferId;
@@ -54,6 +38,8 @@ void VertexArrayUnbind();
 void VertexArrayDelete(VertexArray* vertexArray);
 
 void VertexBufferInitialize(VertexArray* vertexArray, void* data, unsigned int size, GLenum usage);
+void VertexBufferUpdate(VertexArray* vertexArray);
+void VertexBufferUpdateRange(VertexArray* vertexArray, unsigned int offset, unsigned int size);
 void VertexBufferBind(VertexArray* vertexArray);
 void VertexBufferUnbind();
 void VertexBufferDelete(VertexArray* vertexArray);
