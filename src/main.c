@@ -24,10 +24,7 @@
 static const int WIDTH = 1280;
 static const int HEIGHT = 720;
 
-static void ProcessInput(GLFWwindow* window);
-
-static double deltaTime;
-static double lastFrameTime;
+static void ProcessInput(GLFWwindow* window, float deltaTime);
 
 static float zoom = 12.0f;
 static float timeFactor = 1.0f;
@@ -210,31 +207,35 @@ static GLFWwindow* InitializeWindow(int width, int height, int isFullscreen)
     return window;
 }
 
+
+GLFWwindow* SimInitWindow(int width, int height, const char* title, int isFullscreen);
+
+
+GLFWwindow* window;
+
+Interaction interactions[NUM_BALLS] = { 0 };
+Ball balls[NUM_BALLS] = { 0 };
+Line* bounds;
+PriorityQueue pq;
+double startTime;
+double lastFPSUpdate;
 double currentSimTime;
 
-int main(void)
+GLFWwindow* Initialize()
 {
-    GLFWwindow* window = InitializeWindow(WIDTH, HEIGHT, false);
-    if (window == NULL) return -1;
-
-    if (glewInit() != GLEW_OK)
+    window = SimInitWindow(WIDTH, HEIGHT, "Viewer", false);
+    if (window == NULL)
     {
-        printf("Error initializing glew!\n");
+        printf("Error!\n"); // TODO: handle this better
     }
 
     printf("OpenGL version: %s\n", glGetString(GL_VERSION));
     printf("cglm version: %d.%d.%d\n",
         CGLM_VERSION_MAJOR, CGLM_VERSION_MINOR, CGLM_VERSION_PATCH);
 
-    InputInitialize(window);
-    PolygonInitialize();
-
-    //GLCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
-    GLCall(glClearColor(0.1f, 0.15f, 0.2f, 1.0f));
-
     CameraUseOrthographic(((float)WIDTH) / HEIGHT, 10.0f);
 
-    Line* bounds = PolygonLines(4);
+    bounds = PolygonLines(4);
 
     for (int i = 0; i < 4; i++)
     {
@@ -253,9 +254,6 @@ int main(void)
 
     glm_vec2_copy((vec2) { -20, -10 }, bounds[3].a);
     glm_vec2_copy((vec2) { 0, 1 }, bounds[3].b);
-
-    Interaction interactions[NUM_BALLS] = { 0 };
-    Ball balls[NUM_BALLS] = { 0 };
 
     for (int i = 0; i < NUM_BALLS; i++)
     {
@@ -285,191 +283,173 @@ int main(void)
         UpdateBallCollisions(ballIndex, balls, interactions, bounds);
     }
 
-    PriorityQueue pq;
     Interaction inact[10];
     PriorityQueueCreate(&pq, inact, 10);
 
-    for (int i = 0; i < NUM_BALLS; i++) 
+    for (int i = 0; i < NUM_BALLS; i++)
     {
         PriorityQueuePush(&pq, interactions[i]);
     }
 
-    double startTime = glfwGetTime();
-    currentSimTime = startTime;
+    startTime = glfwGetTime();
     double lastFPSUpdate = startTime;
 
-    while (!glfwWindowShouldClose(window))
-    {
-        double currentFrameTime = glfwGetTime();
-        //currentSimTime = currentFrameTime - startTime;
-        deltaTime = currentFrameTime - lastFrameTime;
-        lastFrameTime = currentFrameTime;
+    //GLCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
+    GLCall(glClearColor(0.1f, 0.15f, 0.2f, 1.0f));
 
-        if (lastFPSUpdate + 0.5 < currentFrameTime)
-        {
-            char fpsText[30];
-            snprintf(fpsText, 30, "Viewer | Render: %3.2f ms", deltaTime * 1000.0);
-
-            glfwSetWindowTitle(window, fpsText);
-            lastFPSUpdate += 0.5;
-        }
-
-        ProcessInput(window);
-
-        vec2 scrollDelta;
-        InputScrollDelta(scrollDelta);
-
-        zoom += scrollDelta[1];
-        zoom = fmax(zoom, 0.1f);
-        CameraZoom(zoom);
-
-        mat4 m;
-        CameraViewPerspectiveMatrix(m);
-        PolygonUpdateViewPerspectiveMatrix(m);
-
-        GLCall(glClear(GL_COLOR_BUFFER_BIT));
-
-        vec2 mouseCoords;
-        InputMouseCoords(mouseCoords);
-
-        vec3 worldMouseCoords;
-        CameraViewToWorldPoint(mouseCoords, worldMouseCoords);
-
-        if (PriorityQueuePeek(&pq).time <= currentSimTime)
-        {
-            Interaction i = PriorityQueuePop(&pq);
-
-            
-        }
-
-        // TODO: somehow decrementing the sim timestep makes the simulation more accurate
-        // possibly multiple collision updates on the same frame? out of order effects?
-        // probably find the soonest collision and process first
-        for (int i = 0; i < 10; i++)
-        {
-            if (!paused) currentSimTime += deltaTime / 10.0f * timeFactor;
-            // Pass 1: check if balls have reached their collision time ->
-            // then move them to their exact collision point
-            for (int ballIndex = 0; ballIndex < NUM_BALLS; ballIndex++)
-            {
-                // Collision time is still in the future, skip
-                if (interactions[ballIndex].time > currentSimTime) continue;
-
-                glm_vec2_muladds(balls[ballIndex].velocity,
-                    interactions[ballIndex].time - balls[ballIndex].time,
-                    balls[ballIndex].position); // move ball to new position
-
-                //printf("Ball hit: %.4f s | Sim time: %.4f s | Diff %f s\n",
-                //    interactions[i].time, currentSimTime, currentSimTime - interactions[i].time);
-            }
-
-            // Pass 2: For balls that have collided, compute new velocities and update
-            // Also compute time of new collision and update state
-            for (int ballIndex = 0; ballIndex < NUM_BALLS; ballIndex++)
-            {
-                // Collision time is still in the future, skip
-                if (interactions[ballIndex].time > currentSimTime) continue;
-
-                vec2 normal;
-                int otherBallIndex = -1;
-
-                if (interactions[ballIndex].id < 4)
-                {   
-                    // TODO: implement actual line reflection algorithm
-                    if (interactions[ballIndex].id % 2 == 0) // horizontal lines, reflect vertical
-                    {
-                        normal[0] = 0;
-                        normal[1] = 1;
-                    }
-                    else // vertical lines, reflect horizontal
-                    {
-                        normal[0] = 1;
-                        normal[1] = 0;
-                    }
-                }
-                else
-                {
-                    otherBallIndex = interactions[ballIndex].id - 4;
-
-                    // LogVec2(balls[ballIndex].position);
-                    // LogVec2(balls[otherBallIndex].position);
-
-                    glm_vec2_sub(balls[ballIndex].position, balls[otherBallIndex].position,
-                        normal); // compute line segment between two circles
-
-                    glm_vec2_scale(normal,
-                        1.0f / (balls[ballIndex].circle->radius + balls[otherBallIndex].circle->radius),
-                        normal); // normalize normal
-
-                    float length = glm_vec2_norm(normal);
-                    if (fabs(length - 1.0f) > 0.001f) printf("Normal length error! ");
-                    printf("Normal length: %f\n", length);
-                    // Normal length error means that the balls aren't actually next to
-                    // each other when the collision processing is triggered.
-                    // This indicates an error with the collision algorithm.
-                    //paused = 1;
-                }
-
-                glm_vec2_reflect(balls[ballIndex].velocity, normal, balls[ballIndex].velocity);
-            }
-
-            // Pass 3: Update ball collision time and next collision state
-            for (int ballIndex = 0; ballIndex < NUM_BALLS; ballIndex++)
-            {
-                float interactionTime = interactions[ballIndex].time;
-                if (interactionTime > currentSimTime) continue;
-                balls[ballIndex].time = interactionTime;
-
-                int collidedIndex = UpdateBallCollisions(ballIndex, balls, interactions, bounds);
-                //printf("Ball %d to collide at %f\n", ballIndex, interactionTime);
-                if (collidedIndex < 4) continue;
-
-                // is a ball
-                int collidedBallIndex = collidedIndex - 4;
-                float newInteractionTime = interactions[ballIndex].time;
-
-                // check the other ball if it has a later collision time
-                // if so, we will collide with this ball before it hits its
-                // other target. update the time state accordingly
-                if (interactions[collidedBallIndex].time > newInteractionTime)
-                {
-                    if (interactions[collidedBallIndex].id >= 4) {
-                        // reset collision time for the other other ball
-                        int otherCollidedBallIndex = interactions[collidedBallIndex].id;
-                        interactions[otherCollidedBallIndex].time = balls[otherCollidedBallIndex].time;
-                    }
-                    //printf("Updated ball\n");
-                    //printf("Prev: %f; ", interactions[collidedBallIndex].time);
-                    interactions[collidedBallIndex].time = newInteractionTime;
-                    interactions[collidedBallIndex].id = ballIndex + 4;
-                    //printf("Updated to: %f\n", newInteractionTime);
-                }
-            }
-
-            // Pass 4: Update all balls
-            for (int i = 0; i < NUM_BALLS; i++)
-            {
-                if (!paused)
-                {
-                    UpdateBall(balls + i, currentSimTime, interactions[i].time);
-                }
-            }
-        }
-
-        PolygonRenderPolygons();
-        InputReset();
-
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
-
-    // TODO: Delete things??
-
-    glfwTerminate();
-    return 0;
+    return window;
 }
 
-static void ProcessInput(GLFWwindow* window)
+void Update(float deltaTime)
+{
+    double currentFrameTime = glfwGetTime();
+    currentSimTime = currentFrameTime - startTime;
+
+    if (lastFPSUpdate + 0.5 < currentFrameTime)
+    {
+        char fpsText[30];
+        snprintf(fpsText, 30, "Viewer | Render: %3.2f ms", deltaTime * 1000.0);
+
+        glfwSetWindowTitle(window, fpsText);
+        lastFPSUpdate += 0.5;
+    }
+
+    ProcessInput(window, deltaTime);
+
+    vec2 scrollDelta;
+    InputScrollDelta(scrollDelta);
+
+    zoom += scrollDelta[1];
+    zoom = fmax(zoom, 0.1f);
+    CameraZoom(zoom);
+
+    vec2 mouseCoords;
+    InputMouseCoords(mouseCoords);
+
+    vec3 worldMouseCoords;
+    CameraViewToWorldPoint(mouseCoords, worldMouseCoords);
+
+    if (PriorityQueuePeek(&pq).time <= currentSimTime)
+    {
+        Interaction i = PriorityQueuePop(&pq);
+    }
+
+    // TODO: somehow decrementing the sim timestep makes the simulation more accurate
+    // possibly multiple collision updates on the same frame? out of order effects?
+    // probably find the soonest collision and process first
+    for (int i = 0; i < 10; i++)
+    {
+        if (!paused) currentSimTime += deltaTime / 10.0f * timeFactor;
+        // Pass 1: check if balls have reached their collision time ->
+        // then move them to their exact collision point
+        for (int ballIndex = 0; ballIndex < NUM_BALLS; ballIndex++)
+        {
+            // Collision time is still in the future, skip
+            if (interactions[ballIndex].time > currentSimTime) continue;
+
+            glm_vec2_muladds(balls[ballIndex].velocity,
+                interactions[ballIndex].time - balls[ballIndex].time,
+                balls[ballIndex].position); // move ball to new position
+
+            //printf("Ball hit: %.4f s | Sim time: %.4f s | Diff %f s\n",
+            //    interactions[i].time, currentSimTime, currentSimTime - interactions[i].time);
+        }
+
+        // Pass 2: For balls that have collided, compute new velocities and update
+        // Also compute time of new collision and update state
+        for (int ballIndex = 0; ballIndex < NUM_BALLS; ballIndex++)
+        {
+            // Collision time is still in the future, skip
+            if (interactions[ballIndex].time > currentSimTime) continue;
+
+            vec2 normal;
+            int otherBallIndex = -1;
+
+            if (interactions[ballIndex].id < 4)
+            {
+                // TODO: implement actual line reflection algorithm
+                if (interactions[ballIndex].id % 2 == 0) // horizontal lines, reflect vertical
+                {
+                    normal[0] = 0;
+                    normal[1] = 1;
+                }
+                else // vertical lines, reflect horizontal
+                {
+                    normal[0] = 1;
+                    normal[1] = 0;
+                }
+            }
+            else
+            {
+                otherBallIndex = interactions[ballIndex].id - 4;
+
+                // LogVec2(balls[ballIndex].position);
+                // LogVec2(balls[otherBallIndex].position);
+
+                glm_vec2_sub(balls[ballIndex].position, balls[otherBallIndex].position,
+                    normal); // compute line segment between two circles
+
+                glm_vec2_scale(normal,
+                    1.0f / (balls[ballIndex].circle->radius + balls[otherBallIndex].circle->radius),
+                    normal); // normalize normal
+
+                float length = glm_vec2_norm(normal);
+                if (fabs(length - 1.0f) > 0.001f) printf("Normal length error! ");
+                printf("Normal length: %f\n", length);
+                // Normal length error means that the balls aren't actually next to
+                // each other when the collision processing is triggered.
+                // This indicates an error with the collision algorithm.
+                //paused = 1;
+            }
+
+            glm_vec2_reflect(balls[ballIndex].velocity, normal, balls[ballIndex].velocity);
+        }
+
+        // Pass 3: Update ball collision time and next collision state
+        for (int ballIndex = 0; ballIndex < NUM_BALLS; ballIndex++)
+        {
+            float interactionTime = interactions[ballIndex].time;
+            if (interactionTime > currentSimTime) continue;
+            balls[ballIndex].time = interactionTime;
+
+            int collidedIndex = UpdateBallCollisions(ballIndex, balls, interactions, bounds);
+            //printf("Ball %d to collide at %f\n", ballIndex, interactionTime);
+            if (collidedIndex < 4) continue;
+
+            // is a ball
+            int collidedBallIndex = collidedIndex - 4;
+            float newInteractionTime = interactions[ballIndex].time;
+
+            // check the other ball if it has a later collision time
+            // if so, we will collide with this ball before it hits its
+            // other target. update the time state accordingly
+            if (interactions[collidedBallIndex].time > newInteractionTime)
+            {
+                if (interactions[collidedBallIndex].id >= 4) {
+                    // reset collision time for the other other ball
+                    int otherCollidedBallIndex = interactions[collidedBallIndex].id;
+                    interactions[otherCollidedBallIndex].time = balls[otherCollidedBallIndex].time;
+                }
+                //printf("Updated ball\n");
+                //printf("Prev: %f; ", interactions[collidedBallIndex].time);
+                interactions[collidedBallIndex].time = newInteractionTime;
+                interactions[collidedBallIndex].id = ballIndex + 4;
+                //printf("Updated to: %f\n", newInteractionTime);
+            }
+        }
+
+        // Pass 4: Update all balls
+        for (int i = 0; i < NUM_BALLS; i++)
+        {
+            if (!paused)
+            {
+                UpdateBall(balls + i, currentSimTime, interactions[i].time);
+            }
+        }
+    }
+}
+
+static void ProcessInput(GLFWwindow* window, float deltaTime)
 {
     float speed = zoom / 2.0f;
     vec3 movement = { 0.0f };
