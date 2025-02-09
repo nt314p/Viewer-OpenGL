@@ -58,15 +58,12 @@ int main()
 {
     GLFWwindow* window = Initialize();
 
-    // double startTime = glfwGetTime();
-    // double currentSimTime = startTime;
-    double deltaTime;
-    double lastFrameTime;
+    double lastFrameTime = glfwGetTime();
 
     while (!glfwWindowShouldClose(window))
     {
         double currentFrameTime = glfwGetTime();
-        deltaTime = currentFrameTime - lastFrameTime;
+        double deltaTime = currentFrameTime - lastFrameTime;
         lastFrameTime = currentFrameTime;
 
         Update(deltaTime);
@@ -87,6 +84,8 @@ int main()
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    printf("Exiting...\n");
 
     glfwTerminate();
     return 0;

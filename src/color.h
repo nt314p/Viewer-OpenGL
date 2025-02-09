@@ -3,7 +3,7 @@
 // Ripped straight off of
 // https://docs.oracle.com/javase/8/javafx/api/javafx/scene/paint/Color.html
 
-#define RGB(r, g, b) { r / 255.0f, g / 255.0f, b / 255.0f }
+#define RGB(r, g, b) (vec3) { r / 255.0f, g / 255.0f, b / 255.0f }
 #define CLR_ALICEBLUE RGB(240, 248, 255)
 #define CLR_ANTIQUEWHITE RGB(250, 235, 215)
 #define CLR_AQUA RGB(0, 255, 255)

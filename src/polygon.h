@@ -3,6 +3,7 @@
 // will eventually hold all primitive shapes (1d, 2d, 3d)
 
 #include <cglm\cglm.h>
+#include "renderer.h"
 
 typedef struct Circle
 {
@@ -22,13 +23,13 @@ typedef struct Rect
     float height;
 } Rect;
 
-typedef struct Line
+typedef struct Line2D
 {
     vec3 color;
-    float length;
+    float padding;
     vec2 a;
     vec2 b;
-} Line;
+} Line2D;
 
 typedef struct Point
 {
@@ -37,6 +38,17 @@ typedef struct Point
     vec3 color;
     float padding;
 } Point;
+
+// Represents some z = f(x, y)
+// The grid is n x n
+typedef struct Surface
+{
+    vec3 origin; // The coordinates of the top left corner in world space
+    float scale; // The spacing between subsequent elements in the grid
+    vec4* vertices; // Vertex data (height, r, g, b). (x, y) -> vertices[x + y * n]
+    VertexArray vertexArray;
+    uint32_t n; // The number of elements along each dimension
+} Surface;
 
 // Initializes polygons; must be called before other functions
 void PolygonInitialize();
@@ -54,13 +66,12 @@ Rect* PolygonRect(vec2 position, float width, float height, vec3 color);
 Rect* PolygonRects(unsigned int count);
 
 // Initializes a line and returns its pointer
-Line* PolygonLine(vec2 a, vec2 b, vec3 color);
+Line2D* PolygonLine2D(vec2 a, vec2 b, vec3 color);
 
 // Allocates `count` contiguous lines and returns a pointer
-Line* PolygonLines(unsigned int count);
+Line2D* PolygonLine2Ds(unsigned int count);
 
 // TODO: methods for getting point objects
-
 
 // Updates the view-perspective matrix used to transform polygons
 void PolygonUpdateViewPerspectiveMatrix(mat4 vpMatrix);

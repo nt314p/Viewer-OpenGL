@@ -17,8 +17,9 @@ static const int VerticesPerRect = 4;
 static const char* BasicFragShaderPath = "shaders/BasicFrag.frag";
 static const char* RectVertShaderPath = "shaders/InstancedRect.vert";
 static const char* CircleVertShaderPath = "shaders/InstancedCircle.vert";
-static const char* LineVertShaderPath = "shaders/InstancedLine.vert";
+static const char* LineVertShaderPath = "shaders/InstancedLine2D.vert";
 static const char* PointVertShaderPath = "shaders/InstancedPoint.vert";
+static const char* SurfaceVertShaderPath = "shaders/Surface.vert";
 
 static VertexArray UnitCircleVertexArray;
 static VertexArray UnitSquareVertexArray;
@@ -33,25 +34,26 @@ static const int MaxPointCount = 2048;
 
 static Circle* circles;
 static Rect* rects;
-static Line* lines;
+static Line2D* line2Ds;
 static Point* points;
 
 static UniformBuffer circlesBuffer;
 static UniformBuffer rectsBuffer;
-static UniformBuffer linesBuffer;
+static UniformBuffer line2DsBuffer;
 
 static unsigned int numCircles;
 static unsigned int numRects;
-static unsigned int numLines;
+static unsigned int numLine2Ds;
 static unsigned int numPoints;
 
 static mat4 vpMatrix;
 static UniformBuffer vpMatrixUB;
 
 static unsigned int circleShaderId;
-static unsigned int lineShaderId;
+static unsigned int line2DShaderId;
 static unsigned int rectShaderId;
 static unsigned int pointShaderId;
+static unsigned int surfaceShaderId;
 
 static void InitializeUnitCircle()
 {
@@ -147,39 +149,41 @@ void PolygonInitialize()
     // Initialize primitive buffers
     int circlesSize = sizeof(Circle) * MaxCircleCount;
     int rectsSize = sizeof(Rect) * MaxRectCount;
-    int linesSize = sizeof(Line) * MaxLineCount;
+    int linesSize = sizeof(Line2D) * MaxLineCount;
     int pointsSize = sizeof(Point) * MaxPointCount;
 
     circles = malloc(circlesSize);
     rects = malloc(rectsSize);
-    lines = malloc(linesSize);
+    line2Ds = malloc(linesSize);
     points = malloc(pointsSize);
 
     memset(circles, 0, circlesSize);
     memset(rects, 0, rectsSize);
-    memset(lines, 0, linesSize);
+    memset(line2Ds, 0, linesSize);
     memset(points, 0, pointsSize);
 
     InitializePointVertexArray(); // requires that `points` points to valid memory
 
     UniformBufferInitialize(&circlesBuffer, circles, circlesSize, GL_DYNAMIC_DRAW);
     UniformBufferInitialize(&rectsBuffer, rects, rectsSize, GL_DYNAMIC_DRAW);
-    UniformBufferInitialize(&linesBuffer, lines, linesSize, GL_DYNAMIC_DRAW);
+    UniformBufferInitialize(&line2DsBuffer, line2Ds, linesSize, GL_DYNAMIC_DRAW);
 
     rectShaderId = ShaderCreate(RectVertShaderPath, BasicFragShaderPath);
     circleShaderId = ShaderCreate(CircleVertShaderPath, BasicFragShaderPath);
-    lineShaderId = ShaderCreate(LineVertShaderPath, BasicFragShaderPath);
+    line2DShaderId = ShaderCreate(LineVertShaderPath, BasicFragShaderPath);
     pointShaderId = ShaderCreate(PointVertShaderPath, BasicFragShaderPath);
+    surfaceShaderId = ShaderCreate(SurfaceVertShaderPath, BasicFragShaderPath);
 
     UniformBufferInitialize(&vpMatrixUB, vpMatrix, sizeof(mat4), GL_DYNAMIC_DRAW);
     ShaderBindUniformBuffer(rectShaderId, "Matrices", &vpMatrixUB);
     ShaderBindUniformBuffer(circleShaderId, "Matrices", &vpMatrixUB);
-    ShaderBindUniformBuffer(lineShaderId, "Matrices", &vpMatrixUB);
+    ShaderBindUniformBuffer(line2DShaderId, "Matrices", &vpMatrixUB);
     ShaderBindUniformBuffer(pointShaderId, "Matrices", &vpMatrixUB);
+    ShaderBindUniformBuffer(surfaceShaderId, "Matrices", &vpMatrixUB);
 
     ShaderBindUniformBuffer(circleShaderId, "Circles", &circlesBuffer);
     ShaderBindUniformBuffer(rectShaderId, "Rectangles", &rectsBuffer);
-    ShaderBindUniformBuffer(lineShaderId, "Lines", &linesBuffer);
+    ShaderBindUniformBuffer(line2DShaderId, "Lines", &line2DsBuffer);
 
     IsInitialized = true;
 }
@@ -219,27 +223,90 @@ Rect* PolygonRects(unsigned int count)
     return rs;
 }
 
-Line* PolygonLine(vec2 a, vec2 b, vec3 color)
+Line2D* PolygonLine2D(vec2 a, vec2 b, vec3 color)
 {
-    Line* l = lines + numLines;
+    Line2D* l = line2Ds + numLine2Ds;
     glm_vec2_copy(a, l->a);
-    glm_vec2_sub(b, a, l->b);
-    float length = glm_vec2_norm(l->b);
-    l->length = length;
-
-    l->b[0] /= length;
-    l->b[1] /= length;
+    glm_vec2_copy(b, l->b);
 
     glm_vec3_copy(color, l->color);
-    numLines++;
+    numLine2Ds++;
     return l;
 }
 
-Line* PolygonLines(unsigned int count)
+Line2D* PolygonLine2Ds(unsigned int count)
 {
-    Line* ls = lines + numLines;
-    numLines += count;
+    Line2D* ls = line2Ds + numLine2Ds;
+    numLine2Ds += count;
     return ls;
+}
+
+void SurfaceInitialize(Surface* surface, vec3 origin, float scale, vec4* data, uint32_t n)
+{
+    glm_vec3_copy(origin, surface->origin);
+    surface->scale = scale;
+    surface->n = n;
+
+    int dataSize = sizeof(vec4) * n * n;
+    surface->vertices = data;
+
+    VertexArray* va = &surface->vertexArray;
+
+    VertexArrayInitialize(va);
+    VertexArrayBind(va);
+
+    VertexBufferInitialize(va, surface->vertices, dataSize, GL_DYNAMIC_DRAW);
+    VertexAttribPointerFloats(0, 1); // height
+    VertexAttribPointerFloats(1, 3); // color rgb
+
+    // An n x n grid contains (n - 1) x (n - 1) squares.
+    // So we need 2 * (n - 1) * (n - 1) triangles,
+    // which have 3 * 2 * (n - 1) * (n - 1) vertices.
+    int numVertices = 3 * 2 * (n - 1) * (n - 1);
+    unsigned int* indexData = malloc(sizeof(unsigned int) * numVertices);
+
+    /* Triangulation
+    (x,y)
+     a---b
+     |  /|
+     | / |
+     |/  |
+     c---d (x + 1, y + 1)
+    */
+
+    int vertIndex = 0;
+    for (int x = 0; x < n - 1; x++)
+    {
+        for (int y = 0; y < n - 1; y++)
+        {
+            int a = x + y * n;
+            int b = a + 1;
+            int c = a + n;
+            int d = c + 1;
+            indexData[vertIndex + 0] = a; // top left tri
+            indexData[vertIndex + 1] = b;
+            indexData[vertIndex + 2] = c;
+
+            indexData[vertIndex + 3] = b; // bottom right tri
+            indexData[vertIndex + 4] = d;
+            indexData[vertIndex + 5] = c;
+            vertIndex += 6;
+        }
+    }
+
+    IndexBufferInitialize(va, indexData, numVertices, GL_STATIC_DRAW);
+    free(indexData); // TODO: hopefully we don't access this data again
+
+    VertexArrayUnbind();
+}
+
+void SurfaceDraw(Surface* surface)
+{
+    VertexArray* va = &surface->vertexArray;
+    VertexBufferUpdate(va);
+    ShaderUse(surfaceShaderId);
+    VertexArrayBind(va);
+    GLCall(glDrawElements(GL_TRIANGLES, va->indexBufferCount, GL_UNSIGNED_INT, 0))
 }
 
 static void DrawCircles()
@@ -258,12 +325,12 @@ static void DrawRects()
     GLCall(glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, VerticesPerRect, numRects));
 }
 
-static void DrawLines()
+static void DrawLine2Ds()
 {
-    UniformBufferUpdateRange(&linesBuffer, 0, sizeof(Line) * numLines);
-    ShaderUse(lineShaderId);
+    UniformBufferUpdateRange(&line2DsBuffer, 0, sizeof(Line2D) * numLine2Ds);
+    ShaderUse(line2DShaderId);
     VertexArrayBind(&UnitSquareVertexArray); // why do we bind unit square for lines??
-    GLCall(glDrawArraysInstanced(GL_LINES, 0, VerticesPerLine, numLines));
+    GLCall(glDrawArraysInstanced(GL_LINES, 0, VerticesPerLine, numLine2Ds));
 }
 
 static void DrawPoints()
@@ -288,9 +355,9 @@ void PolygonRenderPolygons()
         DrawCircles();
     }
 
-    if (numLines > 0)
+    if (numLine2Ds > 0)
     {
-        DrawLines();
+        DrawLine2Ds();
     }
 
     if (numPoints > 0)

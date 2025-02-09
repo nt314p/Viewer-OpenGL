@@ -87,7 +87,7 @@ unsigned int ShaderCompile(unsigned int type, const char* filePath)
     glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
     char* message = (char*)alloca(length * sizeof(char));
     glGetShaderInfoLog(id, length, NULL, message);
-    printf("Failed to compile %s shader!\n", (type == GL_VERTEX_SHADER) ? "vertex" : "fragment");
+    printf("Failed to compile %s shader at path '%s'!\n", (type == GL_VERTEX_SHADER) ? "vertex" : "fragment", filePath);
     printf(message);
     printf("%s\n", filePath);
     glDeleteShader(id);
