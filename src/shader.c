@@ -63,6 +63,7 @@ void ShaderBindUniformBuffer(unsigned int shaderId, const char* name,
     UniformBuffer* uniformBuffer)
 {
     GLCall(int blockIndex = glGetUniformBlockIndex(shaderId, name));
+    if (blockIndex == GL_INVALID_INDEX) printf("Uniform buffer '%s' was not found\n", name);
     GLCall(glUniformBlockBinding(shaderId, blockIndex, uniformBuffer->bindingPoint));
 }
 
@@ -72,25 +73,25 @@ unsigned int ShaderCompile(unsigned int type, const char* filePath)
     char* buffer = malloc(fileLength + 1);
     ShaderLoad(filePath, buffer);
 
-    unsigned int id = glCreateShader(type);
-    glShaderSource(id, 1, (const char* const*)&buffer, NULL);
-    glCompileShader(id);
+    GLCall(unsigned int id = glCreateShader(type));
+    GLCall(glShaderSource(id, 1, (const char* const*)&buffer, NULL));
+    GLCall(glCompileShader(id));
 
     int result;
-    glGetShaderiv(id, GL_COMPILE_STATUS, &result);
+    GLCall(glGetShaderiv(id, GL_COMPILE_STATUS, &result));
 
     free(buffer);
     if (result != GL_FALSE)
         return id;
 
     int length;
-    glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
+    GLCall(glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
     char* message = (char*)alloca(length * sizeof(char));
-    glGetShaderInfoLog(id, length, NULL, message);
+    GLCall(glGetShaderInfoLog(id, length, NULL, message));
     printf("Failed to compile %s shader at path '%s'!\n", (type == GL_VERTEX_SHADER) ? "vertex" : "fragment", filePath);
     printf(message);
     printf("%s\n", filePath);
-    glDeleteShader(id);
+    GLCall(glDeleteShader(id));
     return 0;
 }
 
@@ -101,13 +102,13 @@ unsigned int ShaderCreateFromIds(unsigned int vertexShaderId, unsigned int fragm
 {
     unsigned int programId = glCreateProgram();
 
-    glAttachShader(programId, vertexShaderId);
-    glAttachShader(programId, fragmentShaderId);
-    glLinkProgram(programId);
-    glValidateProgram(programId);
+    GLCall(glAttachShader(programId, vertexShaderId));
+    GLCall(glAttachShader(programId, fragmentShaderId));
+    GLCall(glLinkProgram(programId));
+    GLCall(glValidateProgram(programId));
 
-    glDeleteShader(vertexShaderId);
-    glDeleteShader(fragmentShaderId);
+    GLCall(glDeleteShader(vertexShaderId));
+    GLCall(glDeleteShader(fragmentShaderId));
 
     return programId;
 }

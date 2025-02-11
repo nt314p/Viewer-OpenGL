@@ -47,7 +47,7 @@ int ModelToBuffers(const char* filePath, VertexArray* vertexArray) {
     free(buffer);
 
     VertexBufferInitialize(vertexArray, vertices, vertexCount * sizeof(vec3), GL_STATIC_DRAW);
-    VertexAttribPointerFloats(0, 3);
+    VertexAttribPointerFloats(0, 3, 12);
     IndexBufferInitialize(vertexArray, faces, faceCount * 3, GL_STATIC_DRAW);
     
     return 0;

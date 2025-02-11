@@ -8,6 +8,6 @@ void CameraUsePerspective(float fovY, float aspectRatio, float nearClip, float f
 void CameraViewMatrix(mat4 dest);
 void CameraTranslate(vec3 translation);
 void CameraTranslateRelative(vec3 translation);
-void CameraZoom(float size);
+void CameraOrthographicZoom(float size);
 void CameraRotate(float yaw, float pitch, float roll);
 void CameraViewToWorldPoint(vec2 viewPoint, vec3 worldPoint);

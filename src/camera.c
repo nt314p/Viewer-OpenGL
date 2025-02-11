@@ -3,7 +3,7 @@
 #include "camera.h"
 
 // Camera transform 
-static vec3 position = { 0.0f, 0.0f, -1.0f };
+static vec3 position = { 0.0f, 0.0f, -10.0f };
 static vec3 right = { 1.0f, 0.0f, 0.0f };
 static vec3 up = { 0.0f, 1.0f, 0.0f };
 static vec3 forward = { 0.0f, 0.0f, 1.0f };
@@ -181,9 +181,14 @@ void CameraTranslateRelative(vec3 translation)
 }
 
 // for orthographic camera
-void CameraZoom(float size)
+void CameraOrthographicZoom(float size)
 {
     SetOrthographicProjection(aspect, size);
+}
+
+void CameraPerspectiveFOV(float fovAngle)
+{
+    SetPerspectiveProjection(fovAngle, aspect, near, far);
 }
 
 void CameraRotate(float yaw, float pitch, float roll)

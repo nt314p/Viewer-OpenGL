@@ -31,6 +31,16 @@ typedef struct Line2D
     vec2 b;
 } Line2D;
 
+typedef struct Line
+{
+    vec3 color;
+    float padding;
+    vec3 a;
+    float thickness; // TODO: implement thickness
+    vec3 b;
+    float padding2;
+} Line;
+
 typedef struct Point
 {
     vec3 position;
@@ -41,11 +51,14 @@ typedef struct Point
 
 // Represents some z = f(x, y)
 // The grid is n x n
+// TODO: refactor this to redefine the origin to the center of the surface
+// Instead of scale, allow the user to define a surface width dimension
+// TODO: allow for rectangular domains instead of just square
 typedef struct Surface
 {
     vec3 origin; // The coordinates of the top left corner in world space
     float scale; // The spacing between subsequent elements in the grid
-    vec4* vertices; // Vertex data (height, r, g, b). (x, y) -> vertices[x + y * n]
+    float* vertices; // Vertex data (height, r, g, b). (x, y) -> vertices[x + y * n]
     VertexArray vertexArray;
     uint32_t n; // The number of elements along each dimension
 } Surface;
@@ -65,13 +78,23 @@ Rect* PolygonRect(vec2 position, float width, float height, vec3 color);
 // Allocates `count` contiguous rectangles and returns a pointer
 Rect* PolygonRects(unsigned int count);
 
-// Initializes a line and returns its pointer
+// Initializes a 2d line and returns its pointer
 Line2D* PolygonLine2D(vec2 a, vec2 b, vec3 color);
 
-// Allocates `count` contiguous lines and returns a pointer
+// Allocates `count` contiguous 2d lines and returns a pointer
 Line2D* PolygonLine2Ds(unsigned int count);
 
+// Initializes a line and returns its pointer
+Line* PolygonLine(vec3 a, vec3 b, vec3 color);
+
+// Allocates `count` contiguous lines and returns a pointer
+Line* PolygonLines(unsigned int count);
+
 // TODO: methods for getting point objects
+
+void SurfaceInitialize(Surface* surface, vec3 origin, float scale, float* data, uint32_t n);
+
+void SurfaceDraw(Surface* surface);
 
 // Updates the view-perspective matrix used to transform polygons
 void PolygonUpdateViewPerspectiveMatrix(mat4 vpMatrix);

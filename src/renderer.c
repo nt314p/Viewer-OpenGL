@@ -153,8 +153,9 @@ void UniformBufferDelete(UniformBuffer* uniformBuffer)
 
 // Enables and configures an attribute at the specified index
 // The attribute is a series of floats (number specified by size)
-void VertexAttribPointerFloats(unsigned int index, int size)
+// Stride in bytes
+void VertexAttribPointerFloats(unsigned int index, int size, int stride)
 {
     GLCall(glEnableVertexAttribArray(index));
-    GLCall(glVertexAttribPointer(index, size, GL_FLOAT, GL_FALSE, 0, 0));
+    GLCall(glVertexAttribPointer(index, size, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(float) * index)));
 }

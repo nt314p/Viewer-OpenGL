@@ -1,20 +1,17 @@
 #version 330 core
 
-// Represents a line defined by a position p
-// and normalized direction v.
-
 struct Line
 {
     vec4 color;
     vec3 a; // endpoint a
-    float thickness; // line thickness
+    float thickness;
     vec3 b; // endpoint b
-    float dummy;
+    float padding;
 };
 
 layout (std140) uniform Lines
 {
-    Line lines[2048];
+    Line lines[1024];
 };
 
 layout (std140) uniform Matrices

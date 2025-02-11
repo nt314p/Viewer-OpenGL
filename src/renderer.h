@@ -56,4 +56,4 @@ void UniformBufferBind(UniformBuffer* uniformBuffer);
 void UniformBufferUnbind();
 void UniformBufferDelete(UniformBuffer* uniformBuffer);
 
-void VertexAttribPointerFloats(unsigned int index, int size);
+void VertexAttribPointerFloats(unsigned int index, int size, int stride);

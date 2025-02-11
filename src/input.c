@@ -74,12 +74,21 @@ void InputScrollDelta(vec2 scrollDelta)
 // Gets a 2d vector representing axis input
 // x [-1, 1]: horizontal input
 // y [-1, 1]: vertical input
-void InputGetAxes(GLFWwindow* window, vec2 axisInput)
+void InputGetAxes2D(GLFWwindow* window, vec2 axisInput)
 {
     // TODO: store window ref in this file?
     // TODO: custom horizontal and vertical axis keybinds
     axisInput[0] = InputKeyPressed(window, GLFW_KEY_D) - InputKeyPressed(window, GLFW_KEY_A);
     axisInput[1] = InputKeyPressed(window, GLFW_KEY_W) - InputKeyPressed(window, GLFW_KEY_S);
+}
+
+void InputGetAxes3D(GLFWwindow* window, vec3 axisInput)
+{
+    // TODO: store window ref in this file?
+    // TODO: custom horizontal and vertical axis keybinds
+    axisInput[0] = InputKeyPressed(window, GLFW_KEY_D) - InputKeyPressed(window, GLFW_KEY_A);
+    axisInput[1] = InputKeyPressed(window, GLFW_KEY_LEFT_SHIFT) - InputKeyPressed(window, GLFW_KEY_LEFT_CONTROL);
+    axisInput[2] = InputKeyPressed(window, GLFW_KEY_W) - InputKeyPressed(window, GLFW_KEY_S);
 }
 
 // Resets all input values. Should be called at the end of every frame

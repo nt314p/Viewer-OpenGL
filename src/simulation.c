@@ -9,6 +9,7 @@
 
 GLFWwindow* Initialize();
 void Update(float deltaTime);
+void Render(float deltaTime);
 
 // Needs to be called
 GLFWwindow* SimInitWindow(int width, int height, const char* title, int isFullscreen)
@@ -40,7 +41,7 @@ GLFWwindow* SimInitWindow(int width, int height, const char* title, int isFullsc
 
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // TODO: this will break mouse position apparently
 
     if (glewInit() != GLEW_OK)
     {
@@ -54,9 +55,15 @@ GLFWwindow* SimInitWindow(int width, int height, const char* title, int isFullsc
     return window;
 }
 
+// TODO: write build system to convert C struct into vertex attribute
+// or UBO layout in glsl shader
+
 int main()
 {
     GLFWwindow* window = Initialize();
+
+    GLCall(glEnable(GL_DEPTH_TEST));
+    GLCall(glDepthFunc(GL_LESS));
 
     double lastFrameTime = glfwGetTime();
 
@@ -66,19 +73,18 @@ int main()
         double deltaTime = currentFrameTime - lastFrameTime;
         lastFrameTime = currentFrameTime;
 
+        GLCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
         Update(deltaTime);
 
-        // If camera input needs to be changed here... use update and render
-        // Update?
         mat4 m;
         CameraViewPerspectiveMatrix(m);
         PolygonUpdateViewPerspectiveMatrix(m);
 
-        GLCall(glClear(GL_COLOR_BUFFER_BIT));
-
-        // Render?
+        Render(deltaTime);
 
         PolygonRenderPolygons();
+
         InputReset();
 
         glfwSwapBuffers(window);
